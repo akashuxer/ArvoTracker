@@ -1,0 +1,461 @@
+/*
+ * Arvo Roadmap -- this app's own layer, on top of @o9qa/kit.
+ *
+ * Every class here is prefixed `trk-`. The kit's stylesheet already defines 274
+ * global class names and another team's app may add more, so an unprefixed
+ * `.card` or `.legend` here would collide silently rather than loudly. A CSS
+ * module would scope automatically, but these rules sit on the same elements as
+ * the kit's global classes (`.report-tile`, `.data-table__num`, `.link-cell`),
+ * which reads far better as one flat namespace than as a composes() chain.
+ *
+ * Only tokens this repository already uses appear here. An invented token name
+ * does not error -- var() silently falls back -- so a screen can look correct
+ * while being unthemeable, which is exactly the defect ARVO-COLOR-001 describes.
+ *
+ * Interface state takes the SEMANTIC palette (--arvo-color-s|b|t|i-*). The
+ * migration bands and the severity glyphs are data marks and take
+ * ArvoVisualPalette through the --arvo-viz-* variables the kit publishes. Radius
+ * is --arvo-radius-none throughout: Arvo is square.
+ */
+
+/* ---- Section toolbar ---------------------------------------------------- */
+
+.trk-toolbar {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--arvo-space-16);
+  flex-wrap: wrap;
+  padding: var(--arvo-space-4) 0 var(--arvo-space-4);
+}
+
+.trk-toolbar__text { min-width: 0; flex: 1 1 320px; }
+
+.trk-toolbar__title {
+  margin: 0;
+  font-size: var(--arvo-font-size-20);
+  /* Bold is reserved for titles and headline figures. This is a page title. */
+  font-weight: var(--arvo-bold);
+  letter-spacing: -0.01em;
+  color: var(--arvo-color-t-primary, #010101);
+}
+
+.trk-toolbar__lede {
+  margin: var(--arvo-space-2) 0 0;
+  font-size: var(--arvo-font-size-12);
+  color: var(--arvo-color-t-tertiary, #4c4c4c);
+  max-width: 78ch;
+}
+
+.trk-toolbar__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--arvo-space-8);
+  flex: 0 0 auto;
+}
+
+/* ---- Error and help ----------------------------------------------------- */
+
+.trk-error {
+  display: flex;
+  align-items: center;
+  gap: var(--arvo-space-16);
+  padding: var(--arvo-space-16);
+  background-color: var(--arvo-color-s-layer-01, #fff);
+  /* The tint is stated once, on the text, and the border takes it from there --
+     the same pattern .run-infra uses, so there is no second token to keep in
+     step with the first. */
+  color: var(--arvo-color-t-negative, #bc1227);
+  border: var(--arvo-border-1) solid currentColor;
+}
+.trk-error__msg { margin: 0; flex: 1; }
+
+.trk-help { padding: var(--arvo-space-4) 0; }
+.trk-help h3 {
+  margin: var(--arvo-space-16) 0 var(--arvo-space-4);
+  font-size: var(--arvo-font-size-12);
+  font-weight: var(--arvo-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--arvo-color-t-tertiary, #4c4c4c);
+}
+.trk-help h3:first-child { margin-top: 0; }
+.trk-help p {
+  margin: 0;
+  font-size: var(--arvo-font-size-12);
+  line-height: 1.55;
+  color: var(--arvo-color-t-primary, #010101);
+}
+
+/* ---- Filter row --------------------------------------------------------- */
+
+.trk-filters {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--arvo-space-8) var(--arvo-space-12);
+  padding: 0 0 var(--arvo-space-12);
+
+  /* Arvo form inputs default to 300px. Ten of those wraps into a wall, so the
+     row narrows them through the variable the `width` prop sets -- the
+     documented theming route. NOT by styling .arvo-sel__input, which would make
+     a component's internals part of this app's contract; that is the override
+     ARVO-COMP-002 flags, and a tracker that commits it has no standing. */
+  --arvo-form-input-width: 172px;
+}
+.trk-filters__clear { margin-left: auto; }
+
+/* ---- Inline marks ------------------------------------------------------- */
+
+/* An outbound link. The colour, underline and offset come from the kit's own
+   `.link-cell`, which these elements also carry -- this only adds the glyph, so
+   a link means one thing across both apps. */
+.trk-link--out { display: inline-flex; align-items: center; gap: var(--arvo-space-4); }
+.trk-link__ico { font-size: var(--arvo-icon-12); }
+
+.trk-code {
+  font-family: var(--o9-font-family-mono, monospace);
+  font-size: var(--arvo-font-size-11);
+  padding: 0 var(--arvo-space-2);
+  background-color: var(--arvo-color-s-layer-02, #f2f2f2);
+}
+
+.trk-code-block {
+  margin: var(--arvo-space-8) 0 0;
+  padding: var(--arvo-space-8) var(--arvo-space-12);
+  overflow-x: auto;
+  font-family: var(--o9-font-family-mono, monospace);
+  font-size: var(--arvo-font-size-11);
+  background-color: var(--arvo-color-s-layer-02, #f2f2f2);
+  border-left: var(--arvo-border-2) solid var(--arvo-color-b-divider, #e5e5e5);
+}
+
+/* A word first, a tint second. "Repeated" is the label; the colour only
+   reinforces it. A state of the finding, so the semantic palette. */
+.trk-repeat {
+  display: inline-block;
+  padding: 0 var(--arvo-space-4);
+  font-size: var(--arvo-font-size-10);
+  font-weight: var(--arvo-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--arvo-color-t-warning, #926200);
+  border: var(--arvo-border-1) solid currentColor;
+}
+
+.trk-severity { display: inline-flex; align-items: center; gap: var(--arvo-space-6); }
+.trk-severity__ico { font-size: var(--arvo-icon-16); }
+/* Severity is ORDERED, so the glyphs take ordered shades rather than four
+   unrelated hues -- the ramp carries the same order the icons imply. */
+.trk-severity__ico--critical { color: var(--arvo-viz-red-darkest); }
+.trk-severity__ico--high { color: var(--arvo-viz-red-dark); }
+.trk-severity__ico--medium { color: var(--arvo-viz-orange-dark); }
+.trk-severity__ico--low { color: var(--arvo-viz-blue-base); }
+
+.trk-type { display: inline-flex; align-items: center; gap: var(--arvo-space-6); white-space: nowrap; }
+.trk-type__ico { font-size: var(--arvo-icon-16); color: var(--arvo-color-i-secondary, #303030); }
+
+.trk-hint { vertical-align: middle; }
+
+/* A deadline condition is interface state, not a measurement, so it takes the
+   semantic palette. The date is always shown, and "overdue" is spelled out --
+   the meaning never rests on the tint. */
+.trk-date--late { color: var(--arvo-color-t-negative, #bc1227); font-weight: var(--arvo-medium); }
+.trk-date--soon { color: var(--arvo-color-t-warning, #926200); }
+.trk-date__note { font-size: var(--arvo-font-size-10); text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* ---- Columns ------------------------------------------------------------ */
+
+.trk-col-title { max-width: 30ch; }
+.trk-col-bar { min-width: 148px; }
+
+.trk-deps { display: inline-flex; flex-wrap: wrap; gap: var(--arvo-space-4); }
+.trk-chip-link {
+  padding: 0 var(--arvo-space-4);
+  border: var(--arvo-border-1) solid var(--arvo-color-b-divider, #e5e5e5);
+  background-color: var(--arvo-color-s-layer-01, #fff);
+  font-family: var(--o9-font-family-mono, monospace);
+  font-size: var(--arvo-font-size-10);
+  color: var(--arvo-color-t-theme, #010101);
+  cursor: pointer;
+}
+.trk-chip-link:hover { border-color: var(--arvo-color-b-theme, #010101); }
+
+/* ---- Migration bar ------------------------------------------------------ */
+
+.trk-progress { display: flex; align-items: center; gap: var(--arvo-space-8); }
+.trk-progress__pct {
+  flex: 0 0 auto;
+  min-width: 4ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--arvo-medium);
+}
+.trk-progress--lg { margin-top: var(--arvo-space-12); }
+.trk-progress--lg .trk-mig { height: 10px; }
+.trk-progress--lg .trk-progress__pct { font-size: var(--arvo-font-size-18); font-weight: var(--arvo-bold); }
+
+.trk-mig {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 80px;
+  height: 8px;
+  overflow: hidden;
+  background-color: var(--arvo-color-s-layer-02, #f2f2f2);
+}
+.trk-mig__seg { display: block; height: 100%; }
+
+/* Four measured parts of a whole -- a data visual, so ArvoVisualPalette. Four
+   distinguishable FAMILIES, because the bands are categories and not a scale.
+   Every band is also named in the bar's accessible label and in the legend
+   beside it, so they never have to be told apart by colour. */
+.trk-mig__seg--migrated { background-color: var(--arvo-viz-green-dark); }
+.trk-mig__seg--partial { background-color: var(--arvo-viz-blue-bright); }
+.trk-mig__seg--legacy { background-color: var(--arvo-viz-orange-base); }
+.trk-mig__seg--blocked { background-color: var(--arvo-viz-red-dark); }
+
+.trk-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--arvo-space-4) var(--arvo-space-16);
+  margin: 0 0 var(--arvo-space-12);
+  padding: 0;
+  list-style: none;
+  font-size: var(--arvo-font-size-11);
+  color: var(--arvo-color-t-tertiary, #4c4c4c);
+}
+.trk-legend__row { display: flex; align-items: center; gap: var(--arvo-space-6); }
+.trk-legend__swatch { width: 12px; height: 12px; flex: 0 0 auto; }
+
+/* ---- Kanban board ------------------------------------------------------- */
+
+.trk-board {
+  display: flex;
+  gap: var(--arvo-space-12);
+  align-items: flex-start;
+  overflow-x: auto;
+  min-width: 0;
+  padding-bottom: var(--arvo-space-8);
+}
+
+.trk-board__col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--arvo-space-8);
+  flex: 0 0 236px;
+  min-width: 0;
+  padding: var(--arvo-space-8);
+  background-color: var(--arvo-color-s-layer-02, #f2f2f2);
+}
+
+.trk-board__head { display: flex; align-items: center; gap: var(--arvo-space-8); }
+.trk-board__title {
+  margin: 0;
+  flex: 1;
+  font-size: var(--arvo-font-size-11);
+  font-weight: var(--arvo-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--arvo-color-t-tertiary, #4c4c4c);
+}
+.trk-board__count {
+  font-size: var(--arvo-font-size-11);
+  font-variant-numeric: tabular-nums;
+  color: var(--arvo-color-t-tertiary, #4c4c4c);
+}
+
+.trk-board__list { display: flex; flex-direction: column; gap: var(--arvo-space-8); margin: 0; padding: 0; list-style: none; }
+.trk-board__none {
+  padding: var(--arvo-space-12) var(--arvo-space-8);
+  font-size: var(--arvo-font-size-11);
+  color: var(--arvo-color-t-disabled);
+}
+.trk-board-empty { padding: var(--arvo-space-32) 0; }
+
+.trk-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--arvo-space-6);
+  width: 100%;
+  padding: var(--arvo-space-10);
+  text-align: left;
+  font: inherit;
+  border: var(--arvo-border-1) solid var(--arvo-color-b-divider, #e5e5e5);
+  background-color: var(--arvo-color-s-layer-01, #fff);
+  cursor: pointer;
+  transition:
+    border-color var(--arvo-duration-base, 180ms) var(--arvo-ease-standard, ease),
+    box-shadow var(--arvo-duration-base, 180ms) var(--arvo-ease-standard, ease);
+}
+.trk-card:hover {
+  border-color: var(--arvo-color-b-theme, #010101);
+  /* Low elevation: a card lifting slightly, which is what the token is for. */
+  box-shadow: var(--arvo-shadow-low);
+}
+
+.trk-card__top { display: flex; align-items: center; justify-content: space-between; gap: var(--arvo-space-8); }
+.trk-card__id {
+  font-family: var(--o9-font-family-mono, monospace);
+  font-size: var(--arvo-font-size-10);
+  color: var(--arvo-color-t-tertiary, #4c4c4c);
+}
+.trk-card__title {
+  font-size: var(--arvo-font-size-12);
+  font-weight: var(--arvo-medium);
+  line-height: 1.4;
+  color: var(--arvo-color-t-primary, #010101);
+}
+.trk-card__foot { display: flex; flex-direction: column; gap: var(--arvo-space-2); font-size: var(--arvo-font-size-10); }
+.trk-card__meta { color: var(--arvo-color-t-tertiary, #4c4c4c); }
+
+/* ---- Detail drawers ----------------------------------------------------- */
+
+.trk-detail { display: flex; flex-direction: column; gap: var(--arvo-space-20); }
+
+.trk-detail__head { display: flex; flex-direction: column; gap: var(--arvo-space-8); }
+.trk-detail__title {
+  margin: 0;
+  font-size: var(--arvo-font-size-18);
+  font-weight: var(--arvo-bold);
+  line-height: 1.3;
+  color: var(--arvo-color-t-primary, #010101);
+}
+.trk-detail__marks { display: flex; align-items: center; flex-wrap: wrap; gap: var(--arvo-space-8); }
+
+.trk-section { display: flex; flex-direction: column; gap: var(--arvo-space-8); }
+.trk-section__title {
+  margin: 0;
+  padding-bottom: var(--arvo-space-4);
+  border-bottom: var(--arvo-border-1) solid var(--arvo-color-b-divider, #e5e5e5);
+  font-size: var(--arvo-font-size-11);
+  font-weight: var(--arvo-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--arvo-color-t-tertiary, #4c4c4c);
+}
+
+.trk-prose {
+  margin: 0;
+  font-size: var(--arvo-font-size-12);
+  line-height: 1.6;
+  color: var(--arvo-color-t-primary, #010101);
+}
+.trk-prose--quiet { color: var(--arvo-color-t-tertiary, #4c4c4c); }
+
+.trk-dl { display: grid; gap: var(--arvo-space-8) var(--arvo-space-16); margin: 0; }
+.trk-dl--1 { grid-template-columns: 1fr; }
+.trk-dl--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.trk-dl__row--wide { grid-column: 1 / -1; }
+.trk-dl__key {
+  margin: 0 0 var(--arvo-space-2);
+  font-size: var(--arvo-font-size-10);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--arvo-color-t-tertiary, #4c4c4c);
+}
+.trk-dl__val {
+  margin: 0;
+  font-size: var(--arvo-font-size-12);
+  overflow-wrap: anywhere;
+  color: var(--arvo-color-t-primary, #010101);
+}
+
+.trk-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--arvo-space-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--arvo-font-size-12);
+}
+
+.trk-rule-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--arvo-space-8); }
+.trk-rule-row__title { flex: 1 1 12ch; min-width: 0; color: var(--arvo-color-t-tertiary, #4c4c4c); }
+.trk-rule-row__count { display: inline-flex; align-items: center; gap: var(--arvo-space-4); font-variant-numeric: tabular-nums; }
+
+.trk-pills { display: flex; flex-wrap: wrap; gap: var(--arvo-space-4); margin: 0; padding: 0; list-style: none; }
+.trk-pill {
+  padding: var(--arvo-space-2) var(--arvo-space-6);
+  font-family: var(--o9-font-family-mono, monospace);
+  font-size: var(--arvo-font-size-10);
+  border: var(--arvo-border-1) solid var(--arvo-color-b-divider, #e5e5e5);
+  background-color: var(--arvo-color-s-layer-01, #fff);
+}
+/* Not an error state -- legacy is simply where the work has not reached yet. A
+   dashed edge says "not finished" without claiming something is wrong. */
+.trk-pill--legacy { border-style: dashed; color: var(--arvo-color-t-tertiary, #4c4c4c); }
+
+.trk-history { display: flex; flex-direction: column; gap: var(--arvo-space-12); margin: 0; padding: 0; list-style: none; }
+.trk-history__row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--arvo-space-2);
+  padding-left: var(--arvo-space-10);
+  border-left: var(--arvo-border-2) solid var(--arvo-color-b-divider, #e5e5e5);
+}
+.trk-history__meta {
+  font-size: var(--arvo-font-size-10);
+  font-family: var(--o9-font-family-mono, monospace);
+  color: var(--arvo-color-t-tertiary, #4c4c4c);
+}
+.trk-history__text { font-size: var(--arvo-font-size-12); line-height: 1.55; }
+
+/* ---- Forms -------------------------------------------------------------- */
+
+.trk-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--arvo-space-12);
+  /* The fields fill their own cell instead of standing at Arvo's 300px default,
+     which would overflow one column of the grid. */
+  --arvo-form-input-width: 100%;
+}
+@media (max-width: 520px) {
+  .trk-form-grid { grid-template-columns: 1fr; }
+}
+
+/* `.form-actions` is the kit's, and is left alone. This variant only adds the
+   wrap, because this one row carries four controls rather than two and would
+   otherwise push the panel wide. */
+.form-actions--split { flex-wrap: wrap; }
+/* Only the spacer gives ground. Without this the row squeezed the widest label
+   ("Load the example payload") down to an ellipsis while the empty gap beside
+   it kept its width. */
+.form-actions--split > :not(.trk-spacer) { flex: 0 0 auto; }
+.trk-spacer { flex: 1 1 0; min-width: 0; }
+
+.trk-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--arvo-space-10);
+  padding: var(--arvo-space-12);
+  /* Neutral, not informational-blue: this is orientation, not an alert, and a
+     tinted banner above a form reads as something having already gone wrong. */
+  border: var(--arvo-border-1) solid var(--arvo-color-b-divider, #e5e5e5);
+  border-left-width: var(--arvo-border-3);
+  background-color: var(--arvo-color-s-layer-02, #f2f2f2);
+}
+.trk-banner__ico { font-size: var(--arvo-icon-20); color: var(--arvo-color-i-secondary, #303030); flex: 0 0 auto; }
+.trk-banner__title {
+  margin: 0 0 var(--arvo-space-2);
+  font-size: var(--arvo-font-size-12);
+  font-weight: var(--arvo-medium);
+}
+.trk-banner__text {
+  margin: 0;
+  font-size: var(--arvo-font-size-11);
+  line-height: 1.55;
+  color: var(--arvo-color-t-tertiary, #4c4c4c);
+}
+
+/* ---- Analytics grid ----------------------------------------------------- */
+
+/* Two of the charts carry ten or eleven categories and are unreadable in a
+   third of the width, so they take two columns -- and fall back with the grid
+   itself rather than against it. */
+.metric-grid__wide { grid-column: span 2; }
+@media (max-width: 860px) {
+  .metric-grid__wide { grid-column: span 1; }
+}
+/* An expanded tile owns the whole content area, so the span would fight it. */
+.metric-grid__wide.report-tile--full { grid-column: 1 / -1; }

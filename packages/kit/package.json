@@ -1,0 +1,47 @@
+{
+  "name": "@o9qa/kit",
+  "version": "0.1.0",
+  "description": "Shared UI building blocks for the o9 QA Utility Hub: tables, KPIs, charts, filters and the conditional-formatting rules. Built on the o9 Design System (Arvo).",
+  "type": "module",
+  "license": "UNLICENSED",
+  "_vendored": "A COPY. The canonical @o9qa/kit lives in the QA Utility Hub repository; publishing belongs there. `private` is true and publishConfig is removed so this fork can never be pushed over the real package on the o9UI feed. See the repo README, 'The vendored shared layer'.",
+  "private": true,
+  "files": [
+    "index.js",
+    "src",
+    "styles",
+    "types",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./types/index.d.ts",
+      "default": "./index.js"
+    },
+    "./styles": "./styles/kit.css",
+    "./rules": {
+      "types": "./types/rules.d.ts",
+      "default": "./src/conditionalFormat.js"
+    },
+    "./viz": {
+      "types": "./types/viz.d.ts",
+      "default": "./src/viz.js"
+    }
+  },
+  "types": "./types/index.d.ts",
+  "sideEffects": [
+    "*.css"
+  ],
+  "peerDependencies": {
+    "@arvo/react": ">=3.1.2",
+    "@arvo/assets": ">=3.1.2",
+    "@arvo/styles": ">=3.1.2",
+    "@arvo/tokens": ">=3.1.2",
+    "highcharts": ">=13",
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,10 @@
+node_modules/
+dist/
+
+# Never commit a feed credential. The repo's own .npmrc points the @arvo scope
+# at the feed and carries no token; a PAT belongs in your USER ~/.npmrc only.
+.npmrc.local
+*.log
+.DS_Store
+.env
+.env.*

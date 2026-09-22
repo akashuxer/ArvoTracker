@@ -1,0 +1,2208 @@
+/*
+ * Layout shell for the o9 Performance Utility.
+ *
+ * Ported from spend-domain-analysis: a dark icon rail, header, a canvas that
+ * holds white report tiles, and a right launchbar with an optional docked
+ * panel. Values follow that app's structure -- 1px shell seams, a 12px density
+ * gap between tiles, and 20px of canvas inset either side.
+ *
+ * Colours use the Arvo SEMANTIC palette (s- surface, b- border, t- text,
+ * i- icon). Data visuals are the only place ArvoVisualPalette applies.
+ */
+
+.app-container {
+  /* Single source for the shell seam: hidden rails cancel exactly this much
+     with a negative margin, so the two can never drift apart. */
+  --shell-seam: 1px;
+  --density-gap: 12px;
+  --content-inset: 20px;
+  --rail-width: 52px;
+  --header-height: 56px;
+  --panel-width: 320px;
+
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  gap: var(--shell-seam);
+  background-color: var(--arvo-color-s-layer-02, #f2f2f2);
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--o9-font-family, o9Sans, NotoSans, Arial, sans-serif);
+  font-size: var(--arvo-font-size-14);
+  color: var(--arvo-color-t-primary, #010101);
+  background-color: var(--arvo-color-s-layer-02, #f2f2f2);
+}
+
+/* ---- Left rail ---------------------------------------------------------- */
+
+.left-nav {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--arvo-space-8);
+  width: var(--rail-width);
+  flex-shrink: 0;
+  padding: 0 0 var(--arvo-space-8);
+  background-color: var(--arvo-color-s-theme, #010101);
+  transition:
+    width 0.2s ease,
+    opacity 0.2s ease,
+    margin 0.2s ease,
+    padding 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+/* Collapsed rails keep their 4px slot as a spacer but drop the visible surface
+   and border, so only the toggle reads -- no leftover strip along the edge.
+   Colour and border are in the transition above, so it fades rather than
+   blinking out. */
+.left-nav--collapsed {
+  width: 4px;
+  padding: 0;
+  overflow: visible;
+  background-color: transparent;
+}
+.left-nav--collapsed .nav-toggle { position: absolute; left: 100%; bottom: var(--arvo-space-8); }
+/* One control in both states -- CSS rotates the chevron rather than swapping
+   it for a different icon. */
+.left-nav--collapsed .nav-toggle .arvo-btn__ico { transform: rotate(180deg); }
+
+.brand-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  margin: 10px 0;
+  font-size: 26px;
+  /* A white tile carrying the dark mark, which is what makes the logo read as
+     a logo against the near-black rail rather than a rail icon. */
+  background-color: var(--arvo-color-s-white-static, #ffffff);
+  color: var(--arvo-color-i-primary, #010101);
+}
+
+.nav-spacer { flex: 1; }
+
+/* ---- Body / header ------------------------------------------------------ */
+
+.app-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  gap: var(--shell-seam);
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: var(--arvo-space-12);
+  height: var(--header-height);
+  flex-shrink: 0;
+  padding: 0 var(--arvo-space-16);
+  background-color: var(--arvo-color-s-layer-01, #fff);
+}
+
+.header-context { display: flex; align-items: center; gap: var(--arvo-space-8); flex: 0 0 auto; min-width: 0; }
+.header-spacer { flex: 1; }
+
+.workspace-name {
+  font-size: var(--arvo-font-size-18);
+  font-weight: var(--arvo-medium);
+  letter-spacing: -0.01em;
+  color: var(--arvo-color-t-primary, #010101);
+  white-space: nowrap;
+}
+
+.view-tabs {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  margin-left: var(--arvo-space-8);
+}
+
+/* One shared block that slides between tabs. Its top border is the active
+   marker and its fill matches the canvas, which is what makes the selected tab
+   read as continuous with the content below it. */
+.tab-indicator {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  background-color: var(--arvo-color-s-layer-02, #f2f2f2);
+  border-top: 2px solid var(--arvo-color-b-theme-active, #010101);
+  pointer-events: none;
+}
+
+.tab-button {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 var(--arvo-space-20);
+  border: none;
+  border-top: 2px solid transparent;
+  background: none;
+  transition: color 0.28s ease;
+  font: inherit;
+  font-size: var(--arvo-font-size-14);
+  white-space: nowrap;
+  cursor: pointer;
+  color: var(--arvo-color-t-secondary, #303030);
+}
+
+.tab-button + .tab-button::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1px;
+  height: 20px;
+  background-color: var(--arvo-color-b-divider, #e5e5e5);
+}
+
+.tab-button:not(.active):hover { background-color: var(--arvo-color-s-layer-02, #f2f2f2); }
+.tab-button.active { font-weight: var(--arvo-medium); color: var(--arvo-color-t-primary, #010101); }
+.tab-button.active::before,
+.tab-button.active + .tab-button::before { display: none; }
+
+.action-icons { display: flex; align-items: center; gap: var(--arvo-space-2); }
+.user-context { display: flex; align-items: center; gap: var(--arvo-space-8); flex: 0 1 auto; min-width: 0; }
+
+.tenant-name {
+  padding: var(--arvo-space-6) var(--arvo-space-12);
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--arvo-font-size-12);
+  color: var(--arvo-color-t-secondary, #303030);
+  background-color: var(--arvo-color-s-layer-02, #f2f2f2);
+}
+
+.identity-button { display: inline-flex; padding: 0; border: 0; background: none; cursor: pointer; }
+
+/* ---- Main / canvas ------------------------------------------------------ */
+
+/* Below the header: content, the docked panel slot, then the launchbar. */
+.app-body { display: flex; flex: 1; min-height: 0; gap: var(--shell-seam); }
+
+.app-content { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; gap: var(--shell-seam); }
+
+/* The slot that clips the docked panel. Width is animated rather than the
+   panel itself, so the panel never re-lays-out mid-transition. */
+.panel-dock {
+  width: 0;
+  flex-shrink: 0;
+  overflow: hidden;
+  transition: width 0.2s ease;
+}
+
+.panel-dock--open { width: var(--panel-width); }
+
+.panel-placeholder { padding: var(--arvo-space-16); color: var(--arvo-color-t-tertiary, #4c4c4c); }
+
+.content-area {
+  display: flex;
+  flex-direction: column;
+  gap: var(--density-gap);
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  /* Explicitly hidden, not left to compute. With only `overflow-y` set, the
+     x axis computes to `auto` -- so any child wider than the column turned
+     into a page-width scrollbar along the bottom of the window, far from the
+     table that caused it. Wide content scrolls in its own box instead. */
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+  padding: var(--density-gap) var(--content-inset);
+  background-color: var(--arvo-color-s-layer-02, #f2f2f2);
+}
+
+/* ---- Report tile -- the card every section sits in ---------------------- */
+
+.report-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: var(--arvo-space-16);
+  background-color: var(--arvo-color-s-layer-01, #fff);
+  /* A flex item's default min-width is its content, so one wide table inside
+     a tile would stretch the tile, then the column, then the whole shell. This
+     lets the tile stay page-width and hands the overflow to .matrix-scroll. */
+  min-width: 0;
+}
+
+.report-tile--expanded { flex: 1; min-height: 0; }
+
+.tile-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--arvo-space-8) var(--arvo-space-16);
+  margin-bottom: var(--arvo-space-12);
+}
+
+.tile-title {
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--arvo-font-size-18);
+  font-weight: var(--arvo-medium);
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--arvo-color-t-primary, #010101);
+}
+
+/* ---- Right launchbar ---------------------------------------------------- */
+
+.right-launchbar {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--arvo-space-8);
+  width: var(--rail-width);
+  flex-shrink: 0;
+  padding: var(--arvo-space-8) 0;
+  background-color: var(--arvo-color-s-layer-01, #fff);
+  transition:
+    width 0.2s ease,
+    opacity 0.2s ease,
+    margin 0.2s ease,
+    padding 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.right-launchbar--collapsed {
+  width: 4px;
+  padding: 0;
+  overflow: visible;
+  background-color: transparent;
+}
+.right-launchbar--collapsed .launchbar-toggle { position: absolute; right: 100%; bottom: var(--arvo-space-8); }
+.right-launchbar--collapsed .launchbar-toggle .arvo-btn__ico { transform: rotate(180deg); }
+
+.launchbar-spacer { flex: 1; }
+
+/* One block carrying the active treatment, sliding between launchers: a
+   button's own selected state cannot travel to another button. */
+/* ---- Active indicators ---------------------------------------------------
+ * Both rails mark the active item with a bar on its LEFT edge plus a tinted
+ * surface -- not with a border down the whole rail, which says only "here is
+ * a rail" and nothing about where you are.
+ *
+ * One block slides between items, so the move is a single element travelling
+ * rather than one marker vanishing and another appearing. Transform and
+ * height animate together, which is what makes it read as movement. */
+.nav-items,
+.launchbar-tools {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--arvo-space-8);
+  align-self: stretch;
+}
+
+.nav-indicator,
+.launchbar-indicator {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  pointer-events: none;
+  transition:
+    transform var(--arvo-duration-medium, 220ms) var(--arvo-ease-standard, cubic-bezier(0.4, 0, 0.2, 1)),
+    height var(--arvo-duration-medium, 220ms) var(--arvo-ease-standard, cubic-bezier(0.4, 0, 0.2, 1)),
+    background-color var(--arvo-duration-medium, 220ms) ease;
+}
+
+/* Dark rail: a white bar and a lifted surface, because the theme accent is
+   already the rail's own background and would not read against it. */
+.nav-indicator {
+  background-color: rgba(255, 255, 255, 0.14);
+  border-left: var(--arvo-border-3, 2px) solid var(--arvo-color-t-white-static, #fff);
+}
+
+/* Light rail: the theme accent, so it follows the theme picker. */
+.launchbar-indicator {
+  background-color: var(--arvo-color-s-theme-active-3, #f2f2f2);
+  border-left: var(--arvo-border-3, 2px) solid var(--arvo-color-b-theme, #010101);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-indicator,
+  .launchbar-indicator { transition: none; }
+}
+
+.launchbar-tool { position: relative; z-index: 1; }
+
+/* ---- Docked panel ------------------------------------------------------- */
+
+.docked-panel {
+  display: flex;
+  flex-direction: column;
+  width: var(--panel-width);
+  flex-shrink: 0;
+  background-color: var(--arvo-color-s-layer-01, #fff);
+}
+
+.docked-panel__head { padding: var(--arvo-space-16); border-bottom: 1px solid var(--arvo-color-b-divider, #e5e5e5); }
+.docked-panel__head h2 { margin: 0; font-size: var(--arvo-font-size-16); font-weight: var(--arvo-medium); }
+.docked-panel__body { padding: var(--arvo-space-16); overflow: auto; }
+
+/* ---- KPI row / cell ------------------------------------------------------
+ * The card and its labels are interface (semantic colours); the delta, spark
+ * and meter are data marks, so they read from ArvoVisualPalette via --viz-*. */
+
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: var(--density-gap);
+}
+
+.kpi-cell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--arvo-space-4);
+  min-width: 0;
+  padding: var(--arvo-space-16) var(--arvo-space-20);
+  background-color: var(--arvo-color-s-layer-01, #fff);
+}
+
+/* Label and icon share the top line, so the icon costs no vertical space. */
+
+.kpi-cell__label {
+  font-size: var(--arvo-font-size-12);
+  font-weight: var(--arvo-regular);
+  color: var(--arvo-color-t-secondary, #303030);
+}
+
+.kpi-cell__value {
+  font-size: var(--arvo-font-size-24);
+  font-weight: var(--arvo-medium);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--arvo-color-t-primary, #010101);
+}
+
+.kpi-cell__unit { font-size: var(--arvo-font-size-14); color: var(--arvo-color-t-tertiary, #4c4c4c); }
+
+.kpi-cell__meta { display: flex; align-items: center; gap: var(--arvo-space-6); font-size: var(--arvo-font-size-12); }
+
+.kpi-cell__delta { font-weight: var(--arvo-medium); font-variant-numeric: tabular-nums; }
+.kpi-cell__delta--favorable   { color: var(--viz-favorable); }
+.kpi-cell__delta--unfavorable { color: var(--viz-unfavorable); }
+.kpi-cell__delta--caution     { color: var(--viz-caution); }
+
+.kpi-cell__foot { font-size: var(--arvo-font-size-12); color: var(--arvo-color-t-tertiary, #4c4c4c); }
+
+/* Sparkline: a shape, not a readout. Fixed height so cards in a row stay
+   aligned whether or not they carry one. */
+.kpi-cell__spark { margin-top: var(--arvo-space-4); height: 40px; }
+.kpi-spark { height: 40px; }
+
+.kpi-cell__visual { display: flex; flex-direction: column; gap: var(--arvo-space-4); margin-top: var(--arvo-space-6); }
+.kpi-cell__track { width: 100%; height: 6px; background-color: var(--arvo-color-s-layer-02, #f2f2f2); }
+.kpi-cell__fill { height: 100%; background-color: var(--arvo-color-s-theme, #010101); }
+.kpi-cell__fill--favorable   { background-color: var(--viz-favorable); }
+.kpi-cell__fill--unfavorable { background-color: var(--viz-unfavorable); }
+.kpi-cell__fill--caution     { background-color: var(--viz-caution); }
+
+/* The bar never stands alone: a proportion with no denominator is the thing
+   that made these read as misleading progress meters. */
+.kpi-cell__scale {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--arvo-space-8);
+  font-size: var(--arvo-font-size-10);
+  color: var(--arvo-color-t-secondary, #333);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The percentage is the one figure the bar is a picture of, so it carries the
+   emphasis; the legend beside it is what the percentage is OF. */
+.kpi-cell__scale strong {
+  font-weight: var(--arvo-medium);
+  color: var(--arvo-color-t-primary, #010101);
+}
+
+/* Only a meter gets end labels: a target has a floor and a ceiling to name,
+   a part-of-a-whole does not. */
+.kpi-cell__ends {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--arvo-font-size-10);
+  color: var(--arvo-color-t-tertiary, #4c4c4c);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Table --------------------------------------------------------------
+ * The pivot/detail table treatment: hairline dividers, tabular numerals, a
+ * quiet header row. No zebra striping -- the dividers carry the rhythm. */
+
+.data-table { width: 100%; border-collapse: collapse; font-size: var(--arvo-font-size-12); }
+
+.data-table thead th {
+  padding: var(--arvo-space-8) var(--arvo-space-12);
+  text-align: left;
+  font-weight: var(--arvo-medium);
+  font-size: var(--arvo-font-size-10);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--arvo-color-t-tertiary, #4c4c4c);
+  border-bottom: 1px solid var(--arvo-color-b-divider, #e5e5e5);
+  white-space: nowrap;
+}
+
+.data-table tbody td {
+  padding: var(--arvo-space-8) var(--arvo-space-12);
+  border-bottom: 1px solid var(--arvo-color-b-divider, #e5e5e5);
+  color: var(--arvo-color-t-primary, #010101);
+  font-variant-numeric: tabular-nums;
+  /* No single cell may set the table's width.
+     A 60-character unbroken string in Category (a real one in this data)
+     cannot wrap on its own, so it pushed every other column off screen.
+
+     `break-word`, NOT `anywhere`: `anywhere` also shrinks the column to
+     min-content, which broke ordinary words too -- "GlobalWorkflow" came out
+     as "GlobalWork / flow". `break-word` only breaks a word that cannot fit a
+     line on its own, so real words stay whole and only the unbreakable blob
+     gives way. The max-width is what actually caps the column. */
+  overflow-wrap: break-word;
+  max-width: 32ch;
+}
+
+.data-table tbody tr:last-child td { border-bottom: 0; }
+.data-table tbody tr:hover td { background-color: var(--arvo-color-s-layer-02, #f2f2f2); }
+
+/* Two lines, then an ellipsis. Unlimited wrapping is the other failure mode:
+   one 200-character description makes a row six lines tall and the table stops
+   being scannable, which is the only thing a table is for. Two lines keeps
+   rows near-uniform, and the full value stays on the element's `title`.
+
+   The clamp lives on a wrapper inside the cell, not on the cell: a `td` cannot
+   be `display: -webkit-box` without dropping out of the table layout. */
+.data-table__cell {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Cells whose content is interactive or laid out (buttons, chips, charts) opt
+   out -- clamping a row of buttons would clip them. */
+.data-table__cell:has(button),
+.data-table__cell:has(.chip-row),
+.data-table__cell:has(.row-actions) {
+  display: block;
+  overflow: visible;
+}
+
+/* Columns that must never wrap: identifiers, timestamps, numbers. Breaking a
+   date across two lines makes it harder to read, not easier. */
+.data-table__mono,
+.data-table__action {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  max-width: none;
+}
+
+/* Units under units. Tabular figures so the columns of digits are the same
+   width whatever the value. */
+.data-table__num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.data-table__num .th-sort { margin-left: auto; }
+.data-table__num .data-table__cell { display: block; }
+
+.data-table__mono { font-family: var(--o9-font-family-mono, monospace); color: var(--arvo-color-t-secondary, #303030); }
+.data-table__muted { color: var(--arvo-color-t-tertiary, #4c4c4c); }
+
+/* An absent value. Quieter than the data around it, so a column of real
+   values still reads as the signal. */
+.data-table__blank {
+  color: var(--arvo-color-t-disabled);
+  user-select: none;
+}
+
+.tile-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--arvo-color-t-tertiary, #4c4c4c);
+  background-color: var(--arvo-color-s-layer-02, #f2f2f2);
+}
+
+
+/* ---- Popovers (notifications, profile) ---------------------------------- */
+
+.popover-body { min-width: 220px; padding: var(--arvo-space-12); }
+.popover-title { margin: 0 0 var(--arvo-space-8); font-size: var(--arvo-font-size-14); font-weight: var(--arvo-medium); }
+.popover-empty { margin: 0; font-size: var(--arvo-font-size-12); color: var(--arvo-color-t-tertiary, #4c4c4c); }
+
+/* No min-width. The popover is already sized by its `width={280}` prop, and
+   260px was wider than the 256px content box left by the body's 12px side
+   padding -- 4px of overflow, which turned `overflow: auto` into a permanent
+   horizontal scrollbar inside the panel. */
+.profile-popover { width: 100%; }
+.profile-popover__head { display: flex; align-items: center; gap: var(--arvo-space-12); padding-bottom: var(--arvo-space-12); border-bottom: 1px solid var(--arvo-color-b-divider, #e5e5e5); }
+.profile-popover__name { margin: 0; font-size: var(--arvo-font-size-14); font-weight: var(--arvo-medium); }
+.profile-popover__email { margin: 0; font-size: var(--arvo-font-size-12); color: var(--arvo-color-t-tertiary, #4c4c4c); }
+.profile-popover__menu { list-style: none; margin: var(--arvo-space-8) 0 0; padding: 0; }
+.profile-popover__menu button {
+  display: block;
+  width: 100%;
+  padding: var(--arvo-space-8) var(--arvo-space-4);
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--arvo-font-size-14);
+  text-align: left;
+  color: var(--arvo-color-t-primary, #010101);
+  cursor: pointer;
+}
+.profile-popover__menu button:hover { background-color: var(--arvo-color-s-layer-02, #f2f2f2); }
+
+/* ---- Views -------------------------------------------------------------- */
+
+.view-heading { margin: 0; font-size: var(--arvo-font-size-16); font-weight: var(--arvo-medium); color: var(--arvo-color-t-secondary, #303030); }
+.view-loading, .view-error { padding: var(--arvo-space-24); color: var(--arvo-color-t-tertiary, #4c4c4c); }
+
+/* The loader sits where the content will, not pinned to the top-left corner,
+   so its arrival does not read as the page jumping. */
+.view-loading {
+  display: flex;
+  justify-content: center;
+  padding-block: var(--arvo-space-48);
+}
+.view-error { color: var(--arvo-color-t-negative, #bc1227); }
+
+.form-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--arvo-space-12); }
+/* Only the fields share the row's width; the submit button keeps its intrinsic
+   size, or it gets squeezed to an icon-width sliver as the row fills. */
+.form-row > :not(button) { flex: 1 1 180px; min-width: 0; }
+.form-row > button { flex: 0 0 auto; white-space: nowrap; }
+
+.chip-row { display: inline-flex; flex-wrap: wrap; gap: var(--arvo-space-4); }
+.data-table__action { width: 1%; white-space: nowrap; text-align: right; }
+
+
+/* Divider between the hub entry and this app's destinations. Lightened rather
+   than the default b-divider, which is invisible on the near-black rail. */
+.nav-divider {
+  width: 32px;
+  height: 1px;
+  margin: var(--arvo-space-4) 0;
+  background-color: rgba(255, 255, 255, 0.24);
+  flex-shrink: 0;
+}
+
+/* ============================================================
+ * QA Utility Hub -- the landing page.
+ *
+ * No rails: nothing is selected yet. A calm canvas with one decision on it.
+ * ========================================================== */
+
+.hub { display: flex; flex-direction: column; }
+
+.hub-masthead {
+  display: flex;
+  align-items: center;
+  gap: var(--arvo-space-12);
+  height: var(--header-height, 56px);
+  flex-shrink: 0;
+  padding: 0 var(--arvo-space-24);
+  background-color: var(--arvo-color-s-layer-01, #fff);
+}
+
+/* The hub's mark sits on white, so it needs no tile of its own -- unlike the
+   rail's, which is a white tile on near-black. */
+.hub-masthead .brand-mark { margin: 0; background: none; }
+
+.hub-org {
+  padding-left: var(--arvo-space-12);
+  border-left: 1px solid var(--arvo-color-b-divider, #e5e5e5);
+  font-size: var(--arvo-font-size-14);
+  font-weight: var(--arvo-medium);
+  color: var(--arvo-color-t-primary, #010101);
+}
+
+.hub-sso {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--arvo-space-6);
+  font-size: var(--arvo-font-size-12);
+  color: var(--arvo-color-t-tertiary, #4c4c4c);
+}
+
+.hub-body {
+  /* The reading column is capped: a tool chooser read edge to edge on a wide
+     monitor makes the cards drift away from the heading that frames them.
+     Scrolling belongs to .content-area, which already owns it. */
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--arvo-space-16) 0 var(--arvo-space-48);
+}
+
+.hub-eyebrow {
+  margin: 0 0 var(--arvo-space-8);
+  font-size: var(--arvo-font-size-12);
+  font-weight: var(--arvo-medium);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--arvo-color-t-tertiary, #4c4c4c);
+}
+
+.hub-title {
+  margin: 0 0 var(--arvo-space-12);
+  font-size: var(--arvo-font-size-40);
+  font-weight: var(--arvo-bold);
+  letter-spacing: -0.02em;
+  color: var(--arvo-color-t-primary, #010101);
+}
+
+.hub-lede {
+  margin: 0 0 var(--arvo-space-32);
+  max-width: 62ch;
+  font-size: var(--arvo-font-size-16);
+  line-height: 1.5;
+  color: var(--arvo-color-t-secondary, #303030);
+}
+
+/* The controls sit on their own white surface rather than directly on the
+   canvas. Arvo's search paints a hover fill on the field (s-theme-hover-4);
+   over grey that reads as a stray block, over white it reads as the field
+   waking up -- which is what the treatment is for. Giving the component the
+   surface it expects beats overriding its interaction state. */
+.hub-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--arvo-space-12);
+  margin-bottom: var(--arvo-space-24);
+  padding: var(--arvo-space-16);
+  background-color: var(--arvo-color-s-layer-01, #fff);
+}
+.hub-filters { display: flex; flex-wrap: wrap; gap: var(--arvo-space-8); }
+
+/* ---- Tool cards --------------------------------------------------------- */
+
+.tool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--arvo-space-16);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tool-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--arvo-space-8);
+  height: 100%;
+  padding: var(--arvo-space-20);
+  background-color: var(--arvo-color-s-layer-01, #fff);
+  border: 1px solid var(--arvo-color-b-divider, #e5e5e5);
+  transition: box-shadow var(--arvo-duration-base, 180ms) var(--arvo-ease-standard, ease),
+              border-color var(--arvo-duration-base, 180ms) var(--arvo-ease-standard, ease);
+}
+
+/* Only a launchable card lifts on hover -- an affordance on a card that does
+   nothing is a promise the card cannot keep. */
+.tool-card--ready:hover {
+  border-color: var(--arvo-color-b-theme, #010101);
+  box-shadow: var(--arvo-shadow-low);
+}
+
+.tool-card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--arvo-space-8); }
+
+.tool-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  font-size: var(--arvo-icon-24);
+  color: var(--arvo-color-i-primary, #010101);
+  background-color: var(--arvo-color-s-layer-02, #f2f2f2);
+}
+
+.tool-card__name {
+  margin: var(--arvo-space-8) 0 0;
+  font-size: var(--arvo-font-size-16);
+  font-weight: var(--arvo-medium);
+  color: var(--arvo-color-t-primary, #010101);
+}
+
+.tool-card__desc {
+  margin: 0;
+  flex: 1;
+  font-size: var(--arvo-font-size-14);
+  line-height: 1.45;
+  color: var(--arvo-color-t-secondary, #303030);
+}
+
+.tool-card__foot { margin-top: var(--arvo-space-12); }
+.tool-card__note { font-size: var(--arvo-font-size-12); color: var(--arvo-color-t-tertiary, #4c4c4c); }
+
+/* ---- Pinned tools in the rail ------------------------------------------- */
+
+
+
+/* ---- Hub card head ------------------------------------------------------ */
+
+.tool-card__meta { display: flex; align-items: center; gap: var(--arvo-space-4); }
+
+/* ---- Run Manager -------------------------------------------------------- */
+
+.filter-row { display: flex; flex-wrap: wrap; gap: var(--arvo-space-8); margin-bottom: var(--arvo-space-12); }
+
+/* Script lists run to several filenames; the full value is in the title. */
+/* Wraps like every other cell now -- `nowrap` plus an ellipsis meant a long
+   endpoint path showed only its first 260px and the rest was unreachable. The
+   shared two-line clamp keeps rows even while still showing a second line, and
+   the title attribute carries the full value. */
+.data-table__truncate { max-width: 260px; }
+
+/* An infra failure is a different claim from a test failure -- the run did not
+   get a fair chance -- so it is called out beside the status rather than
+   folded into it. */
+.run-infra {
+  margin-left: var(--arvo-space-6);
+  padding: 0 var(--arvo-space-4);
+  font-size: var(--arvo-font-size-10);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--arvo-color-t-warning, #926200);
+  border: 1px solid currentColor;
+}
+
+/* ---- Expandable rows (pipeline steps) ----------------------------------- */
+
+.row-expand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--arvo-space-6);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.data-table__sub { margin-top: var(--arvo-space-2); font-size: var(--arvo-font-size-10); color: var(--arvo-color-t-tertiary, #4c4c4c); }
+.run-error { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.row-detail > td { background-color: var(--arvo-color-s-layer-02, #f2f2f2); }
+
+.step-list { list-style: none; margin: 0; padding: var(--arvo-space-8) 0; }
+.step-list li { display: flex; gap: var(--arvo-space-12); padding: var(--arvo-space-8) var(--arvo-space-12); }
+
+.step-list__n {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--arvo-font-size-10);
+  color: var(--arvo-color-t-inverse, #fff);
+  background-color: var(--arvo-color-s-theme, #010101);
+}
+
+.step-list__name { font-weight: var(--arvo-medium); }
+.step-list__meta { margin-top: var(--arvo-space-2); font-size: var(--arvo-font-size-10); color: var(--arvo-color-t-tertiary, #4c4c4c); }
+
+/* A KPI row nested inside a tile sits closer than the page-level one. */
+.kpi-row--inline { margin: var(--arvo-space-16) 0; }
+.kpi-row--inline .kpi-cell { background-color: var(--arvo-color-s-layer-02, #f2f2f2); }
+
+/* ---- Sortable table headers --------------------------------------------- */
+
+.th-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--arvo-space-4);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* The indicator is always present but only inked once a column is sorting, so
+   the header row does not reflow when you click it. */
+.th-sort .o9con { opacity: 0.35; font-size: var(--arvo-font-size-10); }
+.th-sort:hover .o9con { opacity: 0.7; }
+.th-sort--on { color: var(--arvo-color-t-primary, #010101); }
+.th-sort--on .o9con { opacity: 1; }
+
+/* ---- Upload dropzone ---------------------------------------------------- */
+
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--arvo-space-4);
+  padding: var(--arvo-space-32);
+  text-align: center;
+  background-color: var(--arvo-color-s-layer-02, #f2f2f2);
+  /* Solid, not dashed. A dropzone accepts a drop and opens a file dialog --
+     it is the most interactive thing on the form, and the broken border is
+     reserved for read-only values. */
+  border: var(--arvo-border-1) solid var(--arvo-color-b-form, #949494);
+  transition: border-color var(--arvo-duration-fast, 120ms) ease;
+}
+
+.dropzone:hover { border-color: var(--arvo-color-b-theme-hover, #010101); }
+
+.dropzone--filled { border-color: var(--arvo-color-b-theme, #010101); }
+.dropzone__icon { font-size: var(--arvo-icon-32); color: var(--arvo-color-i-secondary, #303030); }
+.dropzone__name { margin: 0; font-weight: var(--arvo-medium); }
+.dropzone__meta { margin: 0; font-size: var(--arvo-font-size-12); color: var(--arvo-color-t-tertiary, #4c4c4c); }
+.dropzone__actions { display: flex; gap: var(--arvo-space-8); margin-top: var(--arvo-space-12); }
+
+/* A table cell that navigates. Styled as a link rather than a button so the
+   row still reads as data, not a toolbar. */
+.link-cell {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--arvo-color-t-theme, #010101);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.link-cell:hover { color: var(--arvo-color-t-theme-hover, #010101); }
+
+.tile-controls { display: flex; align-items: flex-end; gap: var(--arvo-space-12); }
+.mini-chart-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: var(--density-gap); }
+.data-table__empty { padding: var(--arvo-space-24) !important; text-align: center; }
+
+/* Comparison and summary tables carry a column pair per metric, so they scroll
+   horizontally rather than crushing every column. */
+.table-scroll { overflow-x: auto; }
+.table-scroll .data-table { min-width: 100%; }
+
+.delta-cell { display: inline-block; padding: 0 var(--arvo-space-4); font-variant-numeric: tabular-nums; }
+
+/* ---- Conditional formatting ----------------------------------------------
+ * A filled cell IS a data visual, so the colour comes from ArvoVisualPalette
+ * (via the --arvo-viz-* custom properties) and never from the semantic
+ * palette -- the same tokens the Jinja comparison page fills its cells with,
+ * so the two UIs agree shade for shade.
+ *
+ * The fill is on the span rather than the cell so it survives the table's own
+ * hover and selection backgrounds, and it stretches to the cell's edges
+ * because a partial fill reads as a highlight rather than a verdict. */
+.cf-fill--negative,
+.cf-fill--positive {
+  display: block;
+  margin: calc(var(--arvo-space-8) * -1) calc(var(--arvo-space-12) * -1);
+  padding: var(--arvo-space-8) var(--arvo-space-12);
+  font-weight: var(--arvo-bold);
+  text-align: right;
+}
+
+.cf-fill--negative {
+  background-color: var(--arvo-viz-red-light);
+  color: var(--arvo-viz-red-darkest);
+}
+
+/* Tinted text, no fill. Used where a cell shows a LEVEL rather than a change
+   -- an error rate, an infrastructure delta. Filling those too would leave
+   the row with no visual hierarchy at all, which is what the Jinja page
+   avoids by using text-danger / text-success there and a fill only on the
+   comparison deltas. */
+.cf-text--negative { color: var(--arvo-viz-red-dark); font-weight: var(--arvo-bold); }
+.cf-text--positive { color: var(--arvo-viz-green-dark); font-weight: var(--arvo-bold); }
+.cf-text--caution  { color: var(--arvo-viz-orange-dark); font-weight: var(--arvo-bold); }
+
+.cf-fill--positive {
+  background-color: var(--arvo-viz-green-light);
+  color: var(--arvo-viz-green-darkest);
+}
+
+/* A transaction is a user-facing step; the samplers under it are the calls it
+   makes. Only the endpoint cell is tinted -- tinting the whole row would
+   fight the conditional formatting that the metric cells carry. */
+.data-table tbody tr.row--transaction td:first-child {
+  background-color: var(--arvo-viz-yellow-light);
+  font-weight: var(--arvo-medium);
+}
+
+.compare-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--arvo-space-16); }
+.compare-meta p { margin: var(--arvo-space-2) 0 0; }
+
+/* Three to a row, fixed rather than auto-fit: auto-fit packed four narrow
+   charts onto a wide screen, and a time-series axis needs the width more than
+   the grid needs to be full. `minmax(0, …)` so a wide chart cannot push the
+   track past its share. */
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--density-gap);
+}
+
+@media (max-width: 1280px) {
+  .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 860px) {
+  .metric-grid { grid-template-columns: 1fr; }
+}
+
+/* One chart has taken the screen -- it should not still be sitting in a third
+   of the row. */
+.metric-grid--solo { grid-template-columns: 1fr; }
+
+/* ---- Forms and uploads --------------------------------------------------- */
+
+/* Two independent tasks side by side, collapsing to one column when there is
+   not room for both to stay legible. */
+.split-row {
+  display: grid;
+  /* `min(...)` so the floor can never exceed the container -- a bare
+     340px minimum overflows a narrower panel or column. */
+  grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr));
+  gap: var(--arvo-space-16);
+  align-items: start;
+}
+
+.form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--arvo-space-16);
+}
+
+.field-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--arvo-space-8);
+}
+
+/* Matches Arvo's own form label so a custom field sits level with the
+   component-supplied ones above it. */
+.field-block__label {
+  font-size: var(--arvo-font-size-12);
+  font-weight: var(--arvo-medium);
+  color: var(--arvo-color-t-secondary, #303030);
+}
+
+.field-note {
+  margin: 0;
+  font-size: var(--arvo-font-size-12);
+  color: var(--arvo-color-t-tertiary, #4c4c4c);
+}
+
+/* ---- Matrices ------------------------------------------------------------ */
+
+/* A cross-tabulation is wider than the page by design. It scrolls in its own
+   box so the shell never gains a horizontal scrollbar. */
+.matrix-scroll,
+.table-scroll {
+  overflow-x: auto;
+  /* Without this a scroll container refuses to shrink below its content's
+     min-content width, so it never scrolls and pushes its ancestors wide
+     instead -- the overflow ends up on the page rather than in the box. */
+  min-width: 0;
+}
+
+.matrix-scroll {
+  margin-bottom: var(--arvo-space-16);
+}
+
+.matrix-table th,
+.matrix-table td {
+  white-space: nowrap;
+}
+
+.matrix-table__num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The aggregate row. Heavier than the data so it does not read as one more
+   category, and it stays last because the matrix is not sortable. */
+.matrix-table__total td {
+  font-weight: var(--arvo-medium);
+  background-color: var(--arvo-color-s-layer-02, #f2f2f2);
+  border-top: var(--arvo-border-2) solid var(--arvo-color-b-divider, #e5e5e5);
+}
+
+.matrix-table__empty {
+  padding: var(--arvo-space-16) 0;
+}
+
+.tile-subtitle {
+  margin: var(--arvo-space-16) 0 var(--arvo-space-8);
+  font-size: var(--arvo-font-size-14);
+  font-weight: var(--arvo-medium);
+  color: var(--arvo-color-t-secondary, #303030);
+}
+
+.tile-actions,
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--arvo-space-8);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--arvo-space-8);
+  margin-top: var(--arvo-space-16);
+}
+
+/* ---- Diagnostics --------------------------------------------------------- */
+
+.diag-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  gap: var(--arvo-space-16);
+}
+
+.diag-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--arvo-space-8);
+  min-width: 0;
+}
+
+.diag-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--arvo-space-8);
+  min-height: 28px;
+}
+
+.diag-panel__title {
+  margin: 0;
+  font-size: var(--arvo-font-size-12);
+  font-weight: var(--arvo-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--arvo-color-t-tertiary, #4c4c4c);
+}
+
+.diag-panel__empty {
+  margin: 0;
+  font-size: var(--arvo-font-size-12);
+  color: var(--arvo-color-t-tertiary, #4c4c4c);
+}
+
+.diag-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Name above measure, not beside it. Endpoint names here are long paths, and
+   sharing a line with the measure left them truncated to "WF1_..." -- which
+   names nothing. Stacked, the name gets the panel's full width. */
+.diag-list li {
+  display: flex;
+  flex-direction: column;
+  gap: var(--arvo-space-2);
+  padding: var(--arvo-space-8) 0;
+  border-bottom: var(--arvo-border-1) solid var(--arvo-color-b-divider, #e5e5e5);
+  font-size: var(--arvo-font-size-12);
+  min-width: 0;
+}
+
+.diag-list li:last-child { border-bottom: 0; }
+
+.diag-list__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--arvo-color-t-primary, #010101);
+}
+
+/* The measure carries the meaning, so it never wraps or truncates -- the
+   endpoint name is what gives way when the panel is narrow. */
+.diag-list__value {
+  font-family: var(--o9-font-family-mono);
+  font-weight: var(--arvo-medium);
+  font-size: var(--arvo-font-size-12);
+}
+
+/* Slow and failing are interface states, not data series: Arvo semantic
+   colours, not ArvoVisualPalette. */
+.diag-list__value--warning { color: var(--arvo-color-t-warning); }
+.diag-list__value--negative { color: var(--arvo-color-t-negative); }
+
+/* ---- Resource rows ------------------------------------------------------- */
+
+.resource-cell__name { display: block; }
+
+.resource-cell__source {
+  display: block;
+  font-size: var(--arvo-font-size-10);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--arvo-color-t-tertiary, #4c4c4c);
+}
+
+.view-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--arvo-space-8);
+  flex-wrap: wrap;
+}
+
+/* Arvo's button truncates its label to fit its box. In a row of actions the
+   box is whatever flex leaves it, so the labels came out as "Compare again…".
+   These buttons size to their text instead and wrap when there is no room. */
+.view-actions .arvo-btn,
+.tile-actions .arvo-btn,
+.selection-bar__actions .arvo-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.tile-note {
+  font-size: var(--arvo-font-size-12);
+  color: var(--arvo-color-t-tertiary, #4c4c4c);
+}
+
+/* ---- Row selection ------------------------------------------------------- */
+
+.data-table__select { width: 36px; }
+
+/* Appears only when something is selected, so it must not shift the table when
+   it arrives -- it sits above the table, inside the same tile. */
+.selection-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--arvo-space-12);
+  padding: var(--arvo-space-8) var(--arvo-space-12);
+  margin-bottom: var(--arvo-space-12);
+  background-color: var(--arvo-color-s-layer-02, #f2f2f2);
+  border: var(--arvo-border-1) solid var(--arvo-color-b-divider, #e5e5e5);
+}
+
+.selection-bar__hint {
+  font-size: var(--arvo-font-size-12);
+  color: var(--arvo-color-t-tertiary, #4c4c4c);
+}
+
+.selection-bar__actions {
+  display: flex;
+  gap: var(--arvo-space-8);
+  margin-left: auto;
+}
+
+/* Separates the metric chips from the optional column-group chips beside
+   them -- they filter different things and should not read as one set.
+   Shares its rule with .tile-actions__sep above. */
+
+/* Separates the search from the actions beside it: one narrows what you are
+   looking at, the others start a new task.
+   20px tall, not stretched to the row -- that is the height Arvo's own
+   `.arvo-search__sep` uses inside the search field, so the two read as the
+   same kind of mark. */
+.tile-actions__sep,
+.filter-row__sep {
+  width: 1px;
+  height: 20px;
+  align-self: center;
+  flex-shrink: 0;
+  margin: 0 var(--arvo-space-4);
+  background-color: var(--arvo-color-b-divider, #e5e5e5);
+}
+
+/* ---- Panel contents ------------------------------------------------------ */
+
+.panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--arvo-space-16);
+}
+
+.panel-lede {
+  margin: 0;
+  font-size: var(--arvo-font-size-12);
+  color: var(--arvo-color-t-tertiary, #4c4c4c);
+}
+
+.panel-facts {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--arvo-space-12);
+  margin: 0;
+}
+
+.panel-facts dt {
+  font-size: var(--arvo-font-size-10);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--arvo-color-t-tertiary, #4c4c4c);
+}
+
+.panel-facts dd {
+  margin: var(--arvo-space-2) 0 0;
+  font-size: var(--arvo-font-size-12);
+  overflow-wrap: anywhere;
+}
+
+/* A row that opens its detail beside the table. Reads as a link because it
+   navigates somewhere, and stays marked while its panel is the one on screen
+   -- with no backdrop, that highlight is the only thing saying which row you
+   are looking at. */
+.row-open {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--arvo-color-t-theme-primary, #010101);
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.row-open:hover { color: var(--arvo-color-t-theme-hover); }
+
+.row-open--on {
+  font-weight: var(--arvo-medium);
+  text-decoration: none;
+}
+
+/* ---- Notifications ------------------------------------------------------- */
+
+.notif-empty { padding: var(--arvo-space-16) 0; }
+
+.notif__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--arvo-space-8);
+  padding: var(--arvo-space-8) var(--arvo-space-12);
+  border-bottom: var(--arvo-border-1) solid var(--arvo-color-b-divider, #e5e5e5);
+}
+
+.notif__count {
+  font-size: var(--arvo-font-size-12);
+  color: var(--arvo-color-t-tertiary, #4c4c4c);
+}
+
+.notif__bar-actions { display: flex; gap: var(--arvo-space-4); }
+
+.notif__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  /* Roughly six rows before it scrolls -- enough to see the recent past
+     without the popover becoming a page of its own. */
+  max-height: 336px;
+  overflow-y: auto;
+}
+
+/* The whole row is the target: a failed run is only useful if you can get to
+   the screen that shows its logs. */
+.notif__item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--arvo-space-8);
+  width: 100%;
+  padding: var(--arvo-space-12);
+  border: 0;
+  border-bottom: var(--arvo-border-1) solid var(--arvo-color-b-divider, #e5e5e5);
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notif__item:hover { background-color: var(--arvo-color-s-theme-hover-4); }
+
+/* Unread is carried by a bar on the leading edge and a heavier title, not by
+   colour alone. */
+.notif__item--unread {
+  box-shadow: inset 2px 0 0 var(--arvo-color-b-theme-focus);
+}
+
+.notif__item--unread .notif__title { font-weight: var(--arvo-medium); }
+
+.notif__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--arvo-space-2);
+  min-width: 0;
+}
+
+.notif__title {
+  font-size: var(--arvo-font-size-12);
+  color: var(--arvo-color-t-primary, #010101);
+}
+
+.notif__detail {
+  font-size: var(--arvo-font-size-12);
+  color: var(--arvo-color-t-tertiary, #4c4c4c);
+  /* Failure reasons are long and the useful part is the front of the string. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.notif__time {
+  font-size: var(--arvo-font-size-10);
+  color: var(--arvo-color-t-tertiary, #4c4c4c);
+}
+
+/* Helper text under a field: the rule you must follow, shown before you break
+   it. Replaced in place by the error when you do.
+   Placeholder weight, not tertiary -- a hint you have already read should
+   recede, and it must never compete with the value you are typing. */
+.field-hint {
+  margin: 0;
+  font-size: var(--arvo-font-size-12);
+  color: var(--arvo-color-t-placeholder);
+}
+
+
+/* ---- Settings panel ------------------------------------------------------ */
+
+.prefs { display: flex; flex-direction: column; }
+
+/* Ruled apart rather than boxed: these are peers in one list, and a card each
+   would imply they belong to different places. */
+.pref + .pref {
+  margin-top: var(--arvo-space-20);
+  padding-top: var(--arvo-space-20);
+  border-top: var(--arvo-border-1) solid var(--arvo-color-b-divider, #e5e5e5);
+}
+
+.pref__title {
+  display: flex;
+  align-items: center;
+  gap: var(--arvo-space-8);
+  margin: 0;
+  font-size: var(--arvo-font-size-14);
+  /* Arvo's heading scale defines no bold at any size, so a section title tops
+     out at medium. */
+  font-weight: var(--arvo-medium);
+  color: var(--arvo-color-t-primary, #010101);
+}
+
+.pref__ico { font-size: var(--arvo-icon-16); color: var(--arvo-color-i-secondary); }
+
+.pref__desc {
+  margin: var(--arvo-space-4) 0 0;
+  font-size: var(--arvo-font-size-12);
+  color: var(--arvo-color-t-placeholder);
+}
+
+.pref__body { margin-top: var(--arvo-space-12); }
+
+/* ---- Theme tiles ---------------------------------------------------------- */
+
+/* The grid goes on `__items`, not on the group. ArvoRadioGroup puts the
+   consumer's className on its outer element and nests the radios one level
+   deeper, so laying out the outer one only ever arranges a single child. */
+.theme-grid .arvo-rb-grp__items {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(130px, 100%), 1fr));
+  gap: var(--arvo-space-12);
+}
+
+/* The radio's own control is redundant once the tile shows selection, so it is
+   hidden from sight but not from the accessibility tree -- keyboard and screen
+   reader still get a real radio group. */
+.theme-grid .arvo-radio__input-wrapper {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.theme-grid .arvo-radio__field { align-items: stretch; }
+.theme-grid .arvo-radio__text-container,
+.theme-grid .arvo-radio__text { width: 100%; }
+
+.theme-tile { display: flex; flex-direction: column; gap: var(--arvo-space-6); width: 100%; }
+
+/* Three tints over three shades, each a real token from that theme. */
+.theme-tile__ramp {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 22px);
+  border: var(--arvo-border-2) solid transparent;
+}
+
+.theme-tile__ramp > span { display: block; }
+
+/* Selection is the frame around the swatches, which is the part being chosen.
+   A tick in the corner would sit on top of the very colours it is describing. */
+.theme-grid .arvo-radio__input:checked ~ * .theme-tile__ramp,
+.theme-grid .arvo-radio__field:has(.arvo-radio__input:checked) .theme-tile__ramp {
+  border-color: var(--arvo-color-b-theme-focus);
+}
+
+.theme-tile__name {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--arvo-font-size-12);
+  color: var(--arvo-color-t-primary, #010101);
+}
+
+.theme-tile__hint { font-size: var(--arvo-font-size-10); color: var(--arvo-color-t-placeholder); }
+
+/* ---- Table column separators --------------------------------------------- */
+
+/* Off by default: aligned columns already separate themselves, and vertical
+   rules add ink without adding information. */
+:root[data-separators='both'] .data-table tbody td:not(:last-child),
+:root[data-separators='both'] .data-table thead th:not(:last-child) {
+  border-right: var(--arvo-border-1) solid var(--arvo-color-b-divider, #e5e5e5);
+}
+
+/* ---- In-row visuals ------------------------------------------------------ */
+
+/* Fixed width so bars in a column share a baseline and can be compared down
+   the page rather than only within their own row. */
+.row-bar { display: block; width: 72px; }
+
+.row-bar__track {
+  display: block;
+  height: 4px;
+  background-color: var(--arvo-color-s-layer-03, #e9e9e9);
+}
+
+.row-bar__fill { display: block; height: 100%; }
+
+.row-meter { display: flex; align-items: center; gap: var(--arvo-space-8); }
+.row-meter .row-bar__track { width: 56px; flex-shrink: 0; }
+.row-meter__text { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* The number stays the readout; the bar is the comparison. Stacked so the
+   number keeps its column alignment. */
+.cell-with-bar { display: flex; flex-direction: column; gap: var(--arvo-space-4); }
+.cell-with-bar__value { font-variant-numeric: tabular-nums; }
+
+.row-spark,
+.row-spark__chart { display: block; width: 90px; height: 22px; }
+
+/* ---- Expanded tiles ------------------------------------------------------ */
+
+/* The KPI row is the context an expanded view is read against. Losing it would
+   mean expanding a chart to study it while the numbers it belongs to scroll
+   away, so it stays pinned to the top of the scrolling column. */
+/* `:not(--inline)`: this is for the PAGE-level KPI row only. An inline row
+   lives inside a tile, next to a table, and sticking it there pinned it
+   within the tile and -- with the negative margins below -- painted it 12px
+   over the table header underneath. */
+.kpi-row:not(.kpi-row--inline) {
+  position: sticky;
+  top: calc(var(--density-gap) * -1);
+  z-index: 2;
+  /* The column's own background, so rows passing underneath are covered. */
+  background-color: var(--arvo-color-s-layer-02, #f2f2f2);
+  padding-block: var(--density-gap);
+  margin-block: calc(var(--density-gap) * -1);
+}
+
+/* Fills what the KPI row leaves. `min-height: 0` so a table inside can scroll
+   rather than pushing the tile past the bottom of the column. */
+/* Grows into the free space, but never below its own content: with a
+   `0` basis the tile was shorter than the chart inside it and its background
+   stopped halfway down. */
+.report-tile--full {
+  flex: 1 0 auto;
+  min-height: 0;
+}
+
+/* A chart is a flex item in a column tile, so it SHRINKS by default. On a
+   short viewport that made an expanded chart come out smaller than the
+   collapsed one it replaced -- the tile got whatever height was left, and the
+   chart gave up the difference. It keeps the height Highcharts was told to
+   draw at, and the content area scrolls instead. */
+.report-tile--full .chart,
+.report-tile--full .highcharts-container {
+  flex: 0 0 auto;
+}
+
+.report-tile--full .table-scroll,
+.report-tile--full .matrix-scroll {
+  overflow: auto;
+}
+
+/* A solo mini chart should not still be sharing a third of the row. */
+.mini-chart-row--solo { grid-template-columns: 1fr; }
+
+/* ---- Diagnostics separators ---------------------------------------------- */
+
+/* Three independent lists side by side with nothing between them: the middle
+   column's measures sat close enough to the right column's names to read as
+   one row. A rule per gap, not a box per panel -- the panels are peers, not
+   cards. */
+.diag-row > .diag-panel + .diag-panel {
+  border-left: var(--arvo-border-1) solid var(--arvo-color-b-divider, #e5e5e5);
+  padding-left: var(--arvo-space-16);
+}
+
+/* ---- Busy buttons -------------------------------------------------------- */
+
+.busy-btn { position: relative; display: inline-flex; }
+
+/* Reserves the width the icon had, so starting the action does not make the
+   button -- and the row of buttons beside it -- jump. */
+.busy-btn--on .arvo-btn { padding-left: 2rem; }
+
+.busy-btn__loader {
+  position: absolute;
+  left: var(--arvo-space-8);
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+
+/* ---- Row context menu ---------------------------------------------------- */
+
+/* See useContextMenuOpen: Arvo 3.1.2's ContextMenu never adds the `.open`
+   class its own stylesheet reveals the panel with, so the menu is invisible
+   without this. Scoped to the one panel, never to every menu on the page. */
+.arvo-context-menu.is-open { display: flex; }
+
+/* The row the menu belongs to, so it is obvious what the actions will act on
+   once the pointer has left it. */
+.data-table tbody tr:has(+ * ) {}
+
+/* Arvo's own required mark, for a field this app labels itself. */
+.field-block__req { color: var(--arvo-color-t-negative); margin-left: 2px; }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+/* ---- Execution history cards --------------------------------------------- */
+
+.run-card { gap: var(--arvo-space-12); }
+
+.run-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--arvo-space-12);
+  flex-wrap: wrap;
+}
+
+.run-card__id {
+  font-family: var(--o9-font-family-mono);
+  font-weight: var(--arvo-medium);
+  padding: 2px var(--arvo-space-6);
+  background-color: var(--arvo-color-s-layer-03, #e9e9e9);
+}
+
+/* Takes the slack so the badge and actions stay put across cards. */
+.run-card__name {
+  flex: 1;
+  min-width: 0;
+  font-weight: var(--arvo-medium);
+  overflow-wrap: break-word;
+}
+
+.run-card__duration {
+  font-family: var(--o9-font-family-mono);
+  color: var(--arvo-color-t-secondary, #303030);
+}
+
+.run-card__actions { display: flex; gap: var(--arvo-space-8); }
+
+.run-card__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr));
+  gap: var(--arvo-space-12);
+  margin: 0;
+  padding: var(--arvo-space-12);
+  background-color: var(--arvo-color-s-layer-02, #f2f2f2);
+}
+
+.run-card__facts dt {
+  font-size: var(--arvo-font-size-10);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--arvo-color-t-tertiary, #4c4c4c);
+}
+
+.run-card__facts dd { margin: var(--arvo-space-2) 0 0; font-size: var(--arvo-font-size-12); }
+
+/* The backend puts a `status_reason` on every run, including "Run is still in
+   progress" -- which is status, not a fault. An outlined badge says that: it
+   reads as a state the run is in rather than as a sentence about it. */
+.run-card__reason { display: flex; }
+
+/* ---- Lifecycle stepper --------------------------------------------------- */
+
+/* Even columns so two runs' steppers line up down the page and can be compared
+   stage by stage. The connecting rule is drawn between marks, not under the
+   labels, so a long label never breaks the line. */
+.stepper {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: var(--arvo-space-8);
+  overflow-x: auto;
+}
+
+.stepper__step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--arvo-space-4);
+  position: relative;
+  padding-top: var(--arvo-space-8);
+  text-align: center;
+  min-width: 104px;
+}
+
+/* The rule runs between the marks and takes the colour of the stage it leaves,
+   so a run that goes red at Test Running stays red downstream -- the line
+   carries the failure as well as the marks do. */
+.stepper__step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: calc(var(--arvo-space-8) + 11px);
+  left: calc(50% + 16px);
+  right: calc(-50% + 16px);
+  height: 2px;
+  background-color: var(--arvo-color-b-divider, #e5e5e5);
+}
+
+.stepper__step--completed::after { background-color: var(--arvo-color-b-positive); }
+.stepper__step--failed::after { background-color: var(--arvo-color-b-negative); }
+.stepper__step--aborted::after { background-color: var(--arvo-color-b-warning); }
+.stepper__step--warning::after { background-color: var(--arvo-color-b-warning); }
+
+/* 22px, not the 10px status dot it replaced: the mark carries a glyph and has
+   to be legible, and it anchors the connecting rule. */
+.stepper__mark {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: var(--arvo-radius-circle);
+  font-size: var(--arvo-font-size-12);
+  color: var(--arvo-color-t-white-static);
+}
+
+.stepper__mark .o9con { font-size: var(--arvo-font-size-12); }
+
+/* `-strong`, not the bare name. Arvo DEFINES only `--arvo-color-s-negative`
+   in bare form; `s-positive`, `s-info` and `s-warning` are referenced by its
+   own stylesheet but never declared, so they resolve to nothing and the mark
+   came out transparent -- a white glyph on white. The `-strong` variants are
+   the ones that actually exist. */
+.stepper__mark--positive { background-color: var(--arvo-color-s-positive-strong); }
+.stepper__mark--negative { background-color: var(--arvo-color-s-negative-strong); }
+.stepper__mark--warning { background-color: var(--arvo-color-s-warning-strong); }
+.stepper__mark--active { background-color: var(--arvo-color-s-info-strong); }
+
+/* Not yet reached, and not an outcome -- so outlined rather than filled, with
+   its step number inside. */
+.stepper__mark--pending,
+.stepper__mark--skipped {
+  background-color: var(--arvo-color-s-layer-01, #fff);
+  border: var(--arvo-border-2) solid var(--arvo-color-b-divider, #e5e5e5);
+  color: var(--arvo-color-t-tertiary, #4c4c4c);
+}
+
+.stepper__step-no { font-size: var(--arvo-font-size-10); font-weight: var(--arvo-medium); }
+
+/* The glyph itself rotates. `transform-origin: center` matters: an icon-font
+   glyph is not centred in its em box, so without it the mark wobbles around
+   an off-centre point instead of turning cleanly.
+   900ms explicitly -- `--arvo-duration-slow` is 300ms, which reads as a
+   frantic spin rather than work in progress. */
+.stepper__spin {
+  display: inline-flex;
+  transform-origin: center;
+  animation: stepper-spin 900ms linear infinite;
+}
+
+@keyframes stepper-spin { to { transform: rotate(360deg); } }
+
+/* A spinner is decoration on top of a state that is already named in text, so
+   it is the first thing to go when motion is unwelcome. */
+/* A spinner is decoration on top of a state already named in text, so it is
+   the first thing to go when motion is unwelcome. */
+@media (prefers-reduced-motion: reduce) {
+  .stepper__spin { animation: none; }
+}
+
+.stepper__label {
+  font-size: var(--arvo-font-size-10);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: var(--arvo-medium);
+  color: var(--arvo-color-t-secondary, #303030);
+}
+
+.stepper__step--completed .stepper__label { color: var(--arvo-color-t-positive); }
+.stepper__step--failed .stepper__label { color: var(--arvo-color-t-negative); }
+/* Aborted is a warning, not a failure: somebody stopped it on purpose. */
+.stepper__step--aborted .stepper__label { color: var(--arvo-color-t-warning); }
+.stepper__step--warning .stepper__label { color: var(--arvo-color-t-warning); }
+.stepper__step--active .stepper__label { color: var(--arvo-color-t-info); }
+
+.stepper__meta { font-size: var(--arvo-font-size-10); color: var(--arvo-color-t-placeholder); }
+
+/* A stage this run never runs is present but plainly inert. */
+.stepper__step--skipped .stepper__label,
+.stepper__step--pending .stepper__label { color: var(--arvo-color-t-placeholder); }
+
+.log-stream {
+  margin: 0;
+  padding: var(--arvo-space-12);
+  max-height: 320px;
+  overflow: auto;
+  background-color: var(--arvo-color-s-layer-03, #e9e9e9);
+  font-family: var(--o9-font-family-mono);
+  font-size: var(--arvo-font-size-12);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* One sentence of orientation at the top of a screen. Placeholder weight so
+   it explains without competing with the content it introduces. */
+.view-lede {
+  margin: 0;
+  font-size: var(--arvo-font-size-12);
+  color: var(--arvo-color-t-placeholder);
+}
+
+
+/* A value the form shows but does not let you change.
+   The dotted border is the app's one signal for READ-ONLY -- nothing
+   interactive uses it, and no field is left with no border at all, which
+   would read as an input that failed to render. */
+.field-fixed {
+  margin: 0;
+  padding: var(--arvo-space-8) var(--arvo-space-12);
+  background-color: var(--arvo-color-s-layer-02, #f2f2f2);
+  border: var(--arvo-border-1) dotted var(--arvo-color-b-divider, #e5e5e5);
+  font-size: var(--arvo-font-size-12);
+  font-weight: var(--arvo-medium);
+  color: var(--arvo-color-t-secondary, #303030);
+}
+
+/* ---- Telemetry controls --------------------------------------------------- */
+
+.telemetry-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  gap: var(--arvo-space-16);
+}
+
+.telemetry-control {
+  display: flex;
+  flex-direction: column;
+  gap: var(--arvo-space-8);
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.telemetry-control__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--arvo-space-8);
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.telemetry-control__title {
+  font-size: var(--arvo-font-size-12);
+  font-weight: var(--arvo-medium);
+}
+
+
+/* A field whose label sits beside it rather than above. Used in toolbar rows,
+   where a stacked label makes the row twice as tall as the controls next to
+   it and pushes the chart down for no gain. */
+.inline-field { display: inline-flex; align-items: center; gap: var(--arvo-space-8); }
+
+.inline-field__label {
+  font-size: var(--arvo-font-size-12);
+  color: var(--arvo-color-t-secondary, #303030);
+  white-space: nowrap;
+}
+
+/* ---- Expand / collapse --------------------------------------------------- */
+
+/* The tile grows into place rather than snapping. Height is not animatable
+   from auto, so the transition is on the properties that do interpolate --
+   enough to read as a change of state without pretending to be a full
+   morph. */
+.report-tile {
+  transition:
+    flex-grow var(--arvo-duration-medium, 220ms) var(--arvo-ease-standard, ease),
+    box-shadow var(--arvo-duration-medium, 220ms) var(--arvo-ease-standard, ease);
+}
+
+.report-tile--full {
+  animation: tile-expand var(--arvo-duration-medium, 220ms) var(--arvo-ease-standard, ease);
+}
+
+@keyframes tile-expand {
+  from { opacity: 0.6; transform: scale(0.995); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .report-tile { transition: none; }
+  .report-tile--full { animation: none; }
+}
+
+
+/* ---- Hub card pin --------------------------------------------------------- */
+
+/* Hidden until the card is hovered or the pin is focused -- nine cards each
+   showing one turns the grid into a wall of identical icons. Hidden with
+   opacity, not display, so the card's layout does not shift when it appears.
+   A PINNED card keeps its pin visible: that is state, not an action. */
+.tool-card__pin {
+  opacity: 0;
+  transition: opacity var(--arvo-duration-fast, 120ms) ease;
+}
+
+.tool-card:hover .tool-card__pin,
+.tool-card:focus-within .tool-card__pin,
+.tool-card__pin.selected,
+.tool-card__pin[aria-pressed='true'] {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  /* Nothing to hover with, so it always shows. */
+  .tool-card__pin { opacity: 1; }
+}
+
+/* ---- Interactive affordances ---------------------------------------------- */
+
+/* Anything that takes a click says so, and anything that does not take one
+   says that too.
+ *
+ * By ROLE rather than by class name. The previous version listed the app's
+ * own clickable classes, which meant every new interactive element started
+ * life with the wrong cursor until somebody noticed and added it to the
+ * list. A button is a button whoever wrote it. */
+a[href],
+button,
+summary,
+label[for],
+select,
+[role='button'],
+[role='option'],
+[role='combobox'],
+[role='tab'],
+[role='menuitem'],
+[role='menuitemcheckbox'],
+[role='switch'],
+[role='checkbox'],
+[role='radio'],
+input[type='checkbox'],
+input[type='radio'],
+input[type='file'],
+/* App surfaces that are clickable without being a button element. */
+.nav-item,
+.launchbar-tool,
+.brand-mark,
+.tool-card--ready,
+.link-cell,
+.row-open,
+.row-expand,
+.notif__item,
+.theme-option,
+.theme-tile,
+.sep-option,
+.tab-button,
+.identity-button,
+.arvo-bc__lnk {
+  cursor: pointer;
+}
+
+/* The pointer is over the CHILD, not the control. Arvo's components set
+   their own cursor on inner icons, labels and avatars, so the hit area has
+   to hand its cursor down -- otherwise the pointer appears only on whatever
+   padding is left around the contents. */
+a[href] *,
+button *,
+summary *,
+[role='button'] *,
+[role='option'] *,
+[role='combobox'] *,
+[role='tab'] *,
+[role='menuitem'] *,
+.nav-item *,
+.launchbar-tool *,
+.tool-card--ready *,
+.identity-button *,
+.theme-tile *,
+.sep-option * {
+  cursor: inherit;
+}
+
+/* Disabled means it will not respond, so it must not invite the click.
+   Stated after the rules above so it wins on the same specificity. */
+:disabled,
+:disabled *,
+[aria-disabled='true'],
+[aria-disabled='true'] * {
+  cursor: not-allowed;
+}
+
+/* A field you type into is still a field you type into, whatever it is
+   wrapped in -- a combobox that also accepts text should not claim
+   otherwise. */
+input[type='text'],
+input[type='search'],
+input[type='number'],
+input[type='email'],
+input[type='password'],
+textarea,
+[contenteditable='true'],
+.arvo-multi-sel__input,
+.arvo-search__input {
+  cursor: text;
+}
+
+/* A link in a table keeps the LINK colour whatever the theme is.
+   `--arvo-color-t-info-dark` is the token ArvoLink itself uses, and it is
+   absent from every `[data-theme]` block -- verified -- so it holds steady
+   while the accent turns green or indigo. The theme accent is a brand choice;
+   "this is a link" is a reading cue, and the two should not be the same
+   thing. */
+.link-cell,
+.row-open {
+  color: var(--arvo-color-t-info-dark);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+}
+
+.link-cell:hover,
+.row-open:hover { text-decoration-thickness: 2px; color: var(--arvo-color-t-info-dark); }
+
+/* Restated after the shared link rule above, whose `font: inherit` shorthand
+   resets the weight this selected state depends on. The open row stops
+   reading as a link because you are already there. */
+.row-open--on {
+  font-weight: var(--arvo-medium);
+  text-decoration: none;
+}
+
+/* Sign out is the one destructive item in the profile menu. */
+.profile-popover__menu button.is-danger { color: var(--arvo-color-t-negative); }
+
+/* ---- Column filters ------------------------------------------------------ */
+
+.col-filters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--arvo-space-8);
+  margin-bottom: var(--arvo-space-12);
+}
+
+.col-filters__row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--arvo-space-8);
+  flex-wrap: wrap;
+}
+
+.col-filters__active {
+  display: flex;
+  align-items: center;
+  gap: var(--arvo-space-8);
+  flex-wrap: wrap;
+}
+
+/* Each rule reads as a sentence, so the set of them reads as the question the
+   table is currently answering. */
+.col-filters__rule {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--arvo-space-4);
+  padding: var(--arvo-space-2) var(--arvo-space-8);
+  background-color: var(--arvo-color-s-layer-02, #f2f2f2);
+  border: var(--arvo-border-1) solid var(--arvo-color-b-divider, #e5e5e5);
+  font-size: var(--arvo-font-size-12);
+  font-variant-numeric: tabular-nums;
+}
+
+.col-filters__remove {
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--arvo-color-i-tertiary, #4c4c4c);
+  cursor: pointer;
+  font-size: var(--arvo-font-size-10);
+}
+
+.col-filters__remove:hover { color: var(--arvo-color-i-negative); }
+
+.table-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--arvo-space-8);
+}
+
+.page-size { display: inline-flex; align-items: center; gap: var(--arvo-space-8); }
+
+.page-size__count {
+  font-size: var(--arvo-font-size-12);
+  color: var(--arvo-color-t-placeholder);
+  white-space: nowrap;
+}
+
+/* ---- Labels matrix -------------------------------------------------------- */
+
+.labels-matrix { display: flex; flex-direction: column; gap: var(--arvo-space-8); }
+
+.labels-matrix__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--arvo-space-8);
+  flex-wrap: wrap;
+}
+
+.labels-matrix__count { font-size: var(--arvo-font-size-12); color: var(--arvo-color-t-placeholder); }
+.labels-matrix__actions { display: flex; gap: var(--arvo-space-4); }
+
+/* Scrolls at roughly ten rows: enough to work in without the popover becoming
+   a page of its own. */
+.labels-matrix__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--arvo-space-4);
+}
+
+/* Endpoint names are long; they wrap rather than being cut, because the tail
+   is what distinguishes them. */
+.labels-matrix__list .arvo-chk__lbl,
+.labels-matrix__list label { overflow-wrap: anywhere; font-size: var(--arvo-font-size-12); }
+
+
+/* ---- Column separator previews -------------------------------------------- */
+
+.sep-grid .arvo-rb-grp__items {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(130px, 100%), 1fr));
+  gap: var(--arvo-space-12);
+}
+
+/* The radio control is redundant once the tile shows selection, but it stays
+   in the accessibility tree so keyboard and screen reader get a real group. */
+.sep-grid .arvo-radio__input-wrapper {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.sep-grid .arvo-radio__field { align-items: stretch; }
+.sep-grid .arvo-radio__text-container,
+.sep-grid .arvo-radio__text { width: 100%; }
+
+.sep-option { display: flex; flex-direction: column; gap: var(--arvo-space-6); width: 100%; }
+
+/* A miniature of the thing being chosen: three rows of three cells, ruled the
+   way the setting rules them. */
+.sep-preview {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: 12px;
+  background-color: var(--arvo-color-s-layer-01, #fff);
+  border: var(--arvo-border-2) solid transparent;
+  outline: var(--arvo-border-1) solid var(--arvo-color-b-divider, #e5e5e5);
+  outline-offset: -1px;
+}
+
+.sep-preview > span {
+  border-bottom: var(--arvo-border-1) solid var(--arvo-color-b-divider, #e5e5e5);
+}
+
+.sep-preview > span:nth-last-child(-n + 3) { border-bottom: 0; }
+
+/* The only difference between the two previews, which is the point. */
+.sep-preview--both > span:not(:nth-child(3n)) {
+  border-right: var(--arvo-border-1) solid var(--arvo-color-b-divider, #e5e5e5);
+}
+
+.sep-grid .arvo-radio__field:has(.arvo-radio__input:checked) .sep-preview {
+  border-color: var(--arvo-color-b-theme-focus);
+}
+
+.sep-option__text { display: flex; flex-direction: column; }
+.sep-option__label { font-size: var(--arvo-font-size-12); }
+.sep-option__hint { font-size: var(--arvo-font-size-10); color: var(--arvo-color-t-placeholder); }

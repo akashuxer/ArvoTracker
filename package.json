@@ -1,0 +1,35 @@
+{
+  "name": "arvo-roadmap",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Arvo Roadmap — an internal tracker for design-system work, platform modernization and Arvo implementation violations. Built on the o9 Design System (Arvo) and the shared @o9qa component layer.",
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "node tools/check-imports.mjs",
+    "build:verify": "npm run check && vite build"
+  },
+  "dependencies": {
+    "@arvo/assets": "3.1.2",
+    "@arvo/react": "3.1.2",
+    "@arvo/styles": "3.1.2",
+    "@arvo/tokens": "3.1.2",
+    "@o9qa/kit": "*",
+    "@o9qa/shell": "*",
+    "highcharts": "^13.1.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^5.0.2",
+    "vite": "^7.1.5"
+  }
+}
