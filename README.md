@@ -325,6 +325,17 @@ Vercel writes `NPM_RC` to `.npmrc` before installing. Set it on Production,
 Preview and Development, and use a PAT with **Packaging: Read** only. PATs
 expire — when a deploy that used to work starts failing on `E401`, that is why.
 
+The build prunes itself. `npm run build` runs `tools/postbuild.mjs`, which
+drops the CJK fallback fonts `@arvo/assets` ships — **147 MB down to 9 MB**.
+Vite emits every `@font-face` source it sees, and Noto Sans SC/TC/JP/KR is ~140
+MB of ballast for an English-language tool. The tradeoff, stated plainly: the
+CSS still references those files, so if this app is ever localised into Chinese,
+Japanese or Korean they will 404 and the text will fall back to a system font.
+Stop pruning at that point rather than working around it. The script also fails
+the build if `dist` comes out over 40 MB, because a build that quietly stops
+pruning is one that quietly gets twenty times bigger and nobody notices until a
+deploy times out.
+
 Two things about the build layout, because getting either wrong produces a
 deploy that succeeds and serves a blank page:
 

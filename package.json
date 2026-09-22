@@ -12,7 +12,7 @@
   ],
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node tools/postbuild.mjs",
     "preview": "vite preview",
     "check": "node tools/check-imports.mjs",
     "build:verify": "npm run check && vite build"
