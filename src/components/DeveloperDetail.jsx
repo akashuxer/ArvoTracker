@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
-import { ArvoButton, ArvoPanel } from '@arvo/react'
+import { ArvoButton } from '@arvo/react'
 import { Chart } from '@o9qa/kit'
 import { ArvoVisualPalette } from '@o9qa/kit'
+import DetailPanel from './DetailPanel'
 import { DetailList, DetailSection, Field } from './DetailList'
 import { AdoptionBar, SeverityMark, fmtDate, timeAgo } from './marks'
 import { TEAM, adoptionOf } from '../data/mock'
@@ -109,11 +110,10 @@ export default function DeveloperDetail({ developer, isOpen, onClose }) {
   }, [data])
 
   return (
-    <ArvoPanel
-      displayMode="overlay"
-      placement="right"
+    <DetailPanel
       title={developer ? developer.name : 'Developer'}
-      defaultSize={620}
+      icon="users-alt"
+      size={620}
       isOpen={isOpen}
       onClose={onClose}
     >
@@ -273,6 +273,6 @@ export default function DeveloperDetail({ developer, isOpen, onClose }) {
           </div>
         </div>
       )}
-    </ArvoPanel>
+    </DetailPanel>
   )
 }

@@ -1,10 +1,12 @@
 import { useMemo } from 'react'
-import { ArvoButton, ArvoPanel, ArvoSelect } from '@arvo/react'
+import { ArvoButton, ArvoSelect } from '@arvo/react'
+import DetailPanel from './DetailPanel'
+import Timeline from './Timeline'
 import { DetailList, DetailSection, Field } from './DetailList'
 import { SeverityMark, StatusBadge, ViolationStatusBadge, fmtDateTime, timeAgo } from './marks'
 import { OWNERS, TEAM } from '../data/mock'
 import { RULE } from '../data/rules'
-import { VIOLATION_STATUSES, toItems, toStringItems } from '../data/enums'
+import { SETTLED_VIOLATION_STATUSES, VIOLATION_STATUSES, toItems, toStringItems } from '../data/enums'
 import { useTracker } from '../data/store'
 
 /**
@@ -51,11 +53,10 @@ export default function ViolationDetail({ violation, isOpen, onClose, onOpenItem
   }, [violation, relatedItems])
 
   return (
-    <ArvoPanel
-      displayMode="overlay"
-      placement="right"
+    <DetailPanel
       title={violation ? `${violation.id} · ${violation.ruleId}` : 'Violation'}
-      defaultSize={620}
+      icon="exclamation-triangle"
+      size={620}
       isOpen={isOpen}
       onClose={onClose}
     >
@@ -124,17 +125,34 @@ export default function ViolationDetail({ violation, isOpen, onClose, onOpenItem
                   is a signal the guidance has not landed — worth a conversation rather than another
                   ticket.
                 </p>
-                <ul className="trk-list">
-                  {history.slice(0, 8).map((v) => (
-                    <li key={v.id}>
-                      <span className="trk-rule-row">
-                        <code className="trk-code">{v.commitId || v.id}</code>
-                        <ViolationStatusBadge status={v.status} />
-                        <span className="trk-rule-row__title">{fmtDateTime(v.detectedAt)}</span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                {/* A timeline, because these ARE events in sequence and a
+                    flat list made every sighting look equally recent. The one
+                    on screen is marked, so the reader can see where in its own
+                    history this finding sits. */}
+                <Timeline
+                  items={[
+                    {
+                      id: violation.id,
+                      label: violation.commitId || violation.id,
+                      at: fmtDateTime(violation.detectedAt),
+                      badge: <ViolationStatusBadge status={violation.status} />,
+                      text: 'This one.',
+                      tone: 'current',
+                    },
+                    ...history.slice(0, 8).map((v) => ({
+                      id: v.id,
+                      label: v.commitId || v.id,
+                      at: fmtDateTime(v.detectedAt),
+                      badge: <ViolationStatusBadge status={v.status} />,
+                      tone: SETTLED_VIOLATION_STATUSES.has(v.status) ? 'positive' : undefined,
+                    })),
+                  ]}
+                />
+                {history.length > 8 && (
+                  <p className="trk-prose trk-prose--quiet">
+                    Showing the 8 most recent of {history.length}.
+                  </p>
+                )}
               </>
             ) : (
               <p className="trk-prose trk-prose--quiet">First time this rule has tripped here.</p>
@@ -187,6 +205,6 @@ export default function ViolationDetail({ violation, isOpen, onClose, onOpenItem
           </div>
         </div>
       )}
-    </ArvoPanel>
+    </DetailPanel>
   )
 }

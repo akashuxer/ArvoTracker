@@ -261,6 +261,7 @@ export default function ModernizationView({ onEditItem }) {
           columns={columns}
           rows={rows}
           rowKey={(a) => a.id}
+          rowClassName={(a) => (openArea?.id === a.id ? 'trk-row--open' : '')}
           query={query}
           rowActions={{ onShowDetails: setOpenArea }}
           emptyTitle={query || activeFilterCount ? 'No matches' : 'Nothing tracked yet'}

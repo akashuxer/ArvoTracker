@@ -260,6 +260,7 @@ export default function RoadmapView({ subTab = 'all', onEditItem }) {
               columns={columns}
               rows={shown}
               rowKey={(w) => w.id}
+              rowClassName={(w) => (openItem?.id === w.id ? 'trk-row--open' : '')}
               query={query}
               rowActions={{ onShowDetails: setOpenItem, onEdit: onEditItem, onDelete: setPendingDelete }}
               emptyTitle={query || activeFilterCount ? 'No matches' : 'Nothing here yet'}

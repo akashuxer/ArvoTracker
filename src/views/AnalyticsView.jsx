@@ -651,6 +651,9 @@ export default function AnalyticsView() {
           columns={devColumns}
           rows={[...devRows].sort((a, b) => (b.pct ?? -1) - (a.pct ?? -1))}
           rowKey={(r) => r.id}
+          /* Without a scrim, nothing else says which row the open drawer is
+             describing. */
+          rowClassName={(r) => (openDev?.name === r.name ? 'trk-row--open' : '')}
           emptyMessage="No developers in the directory."
         />
       </ExpandableTile>

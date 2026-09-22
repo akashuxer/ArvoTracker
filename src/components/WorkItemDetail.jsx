@@ -1,4 +1,6 @@
-import { ArvoButton, ArvoPanel } from '@arvo/react'
+import { ArvoButton } from '@arvo/react'
+import DetailPanel from './DetailPanel'
+import Timeline from './Timeline'
 import { DetailList, DetailSection, Field, MaybeLink } from './DetailList'
 import { PriorityBadge, StatusBadge, TypeMark, fmtDate, fmtDateTime, timeAgo } from './marks'
 import { TEAM } from '../data/mock'
@@ -21,11 +23,10 @@ export default function WorkItemDetail({ item, isOpen, onClose, onEdit }) {
   const blocking = item ? areas.filter((a) => a.dependencies.includes(item.id)) : []
 
   return (
-    <ArvoPanel
-      displayMode="overlay"
-      placement="right"
+    <DetailPanel
       title={item ? item.id : 'Work item'}
-      defaultSize={520}
+      icon="clipboard"
+      size={520}
       isOpen={isOpen}
       onClose={onClose}
     >
@@ -97,19 +98,21 @@ export default function WorkItemDetail({ item, isOpen, onClose, onEdit }) {
 
           <DetailSection title="Notes and decision history">
             {item.notes?.length ? (
-              <ol className="trk-history">
-                {item.notes
+              /* The same timeline the violation history uses. Decision history
+                 is the archetypal case for it: events, in sequence, where when
+                 something was decided is half the meaning. */
+              <Timeline
+                items={item.notes
                   .slice()
                   .reverse()
-                  .map((n, i) => (
-                    <li className="trk-history__row" key={`${n.at}-${i}`}>
-                      <span className="trk-history__meta">
-                        {fmtDateTime(n.at)} · {n.by}
-                      </span>
-                      <span className="trk-history__text">{n.text}</span>
-                    </li>
-                  ))}
-              </ol>
+                  .map((n, i) => ({
+                    id: `${n.at}-${i}`,
+                    label: n.by,
+                    at: fmtDateTime(n.at),
+                    text: n.text,
+                    tone: i === 0 ? 'info' : undefined,
+                  }))}
+              />
             ) : (
               <p className="trk-prose trk-prose--quiet">
                 No decisions recorded yet. Anything worth explaining later — why this was deferred,
@@ -124,6 +127,6 @@ export default function WorkItemDetail({ item, isOpen, onClose, onEdit }) {
           </div>
         </div>
       )}
-    </ArvoPanel>
+    </DetailPanel>
   )
 }

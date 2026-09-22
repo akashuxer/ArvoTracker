@@ -284,6 +284,7 @@ export default function ViolationsView({ onEditItem }) {
           columns={columns}
           rows={shown}
           rowKey={(v) => v.id}
+          rowClassName={(v) => (openRow?.id === v.id ? 'trk-row--open' : '')}
           query={query}
           rowActions={{ onShowDetails: setOpenRow }}
           emptyTitle={query || activeFilterCount ? 'No matches' : 'Nothing found'}

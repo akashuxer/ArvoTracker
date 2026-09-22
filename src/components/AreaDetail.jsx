@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
-import { ArvoButton, ArvoPanel } from '@arvo/react'
+import { ArvoButton } from '@arvo/react'
+import DetailPanel from './DetailPanel'
 import { DetailList, DetailSection, Field } from './DetailList'
 import { Hint, MigrationBar, SeverityMark, StatusBadge, fmtDate, timeAgo } from './marks'
 import { TEAM } from '../data/mock'
@@ -35,11 +36,10 @@ export default function AreaDetail({ area, isOpen, onClose, onOpenItem }) {
   const pct = area?.total ? Math.round((area.migrated / area.total) * 100) : 0
 
   return (
-    <ArvoPanel
-      displayMode="overlay"
-      placement="right"
+    <DetailPanel
       title={area ? area.name : 'Product area'}
-      defaultSize={560}
+      icon="grid"
+      size={560}
       isOpen={isOpen}
       onClose={onClose}
     >
@@ -159,6 +159,6 @@ export default function AreaDetail({ area, isOpen, onClose, onOpenItem }) {
           </div>
         </div>
       )}
-    </ArvoPanel>
+    </DetailPanel>
   )
 }

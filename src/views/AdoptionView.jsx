@@ -8,6 +8,7 @@ import { SETTLED_VIOLATION_STATUSES, toStringItems } from '../data/enums'
 import { AdoptionBar, Hint, fmtDate, timeAgo } from '../components/marks'
 import { bucketBy, formatMovement, movement, toDate } from '../lib/series'
 import DeveloperDetail from '../components/DeveloperDetail'
+import PullRequestDetail from '../components/PullRequestDetail'
 
 /**
  * Adoption -- what people ARE using.
@@ -41,6 +42,7 @@ export default function AdoptionView({ subTab = 'prs' }) {
   const [expandedId, setExpandedId] = useState(null)
   const [pageSize, setPageSize] = useState(25)
   const [openDev, setOpenDev] = useState(null)
+  const [openPr, setOpenPr] = useState(null)
 
   const set = (key) => (value) => setFilters((f) => ({ ...f, [key]: value }))
   const clearAll = () => setFilters({ team: ANY, developer: ANY, repository: ANY, group: ANY })
@@ -254,21 +256,25 @@ export default function AdoptionView({ subTab = 'prs' }) {
   if (status === 'loading') return <ViewLoading message="Measuring adoption…" />
 
   const prColumns = [
-    { key: 'id', label: 'PR', className: 'data-table__mono trk-col--meta', sortValue: (p) => p.number },
+    {
+      key: 'id',
+      label: 'PR',
+      className: 'data-table__mono trk-col--key',
+      /* The PR is what this table is a list OF, so it is the row's link. The
+         developer used to be, which meant the only way into a pull request was
+         through the person who opened it. */
+      render: (p) => (
+        <button type="button" className="link-cell" onClick={() => setOpenPr(p)}>
+          {p.id}
+        </button>
+      ),
+      sortValue: (p) => p.number,
+    },
     { key: 'title', label: 'Title', className: 'trk-col-title trk-col--key' },
     { key: 'repository', label: 'Repository', className: 'data-table__mono trk-col--meta trk-col--sep', headerClassName: 'trk-col--sep' },
     { key: 'productArea', label: 'Area' },
     { key: 'team', label: 'Team', render: (p) => TEAM[p.team]?.name, searchValue: (p) => TEAM[p.team]?.name ?? '' },
-    {
-      key: 'author',
-      label: 'Developer',
-      render: (p) => (
-        <button type="button" className="link-cell" onClick={() => setOpenDev(DEVELOPER[p.author])}>
-          {p.author}
-        </button>
-      ),
-      sortValue: (p) => p.author,
-    },
+    { key: 'author', label: 'Developer', sortValue: (p) => p.author },
     {
       key: 'adoption',
       label: 'Arvo adoption',
@@ -547,7 +553,18 @@ export default function AdoptionView({ subTab = 'prs' }) {
           rows={shown}
           rowKey={tab.key}
           query={query}
-          rowClassName={(r) => (subTab === 'components' && r.uses === 0 ? 'trk-row--quiet' : '')}
+          rowClassName={(r) =>
+            [
+              subTab === 'components' && r.uses === 0 ? 'trk-row--quiet' : '',
+              /* Without a scrim, nothing else says which of forty rows the
+                 open drawer is describing. */
+              (subTab === 'prs' && openPr?.id === r.id) || (subTab === 'developers' && openDev?.id === r.id)
+                ? 'trk-row--open'
+                : '',
+            ]
+              .filter(Boolean)
+              .join(' ')
+          }
           emptyTitle={query || activeFilterCount ? 'No matches' : 'Nothing yet'}
           emptyMessage={query ? `Nothing matches “${query}”.` : tab.empty}
         />
@@ -560,6 +577,16 @@ export default function AdoptionView({ subTab = 'prs' }) {
         developer={openDev}
         isOpen={!!openDev}
         onClose={() => setOpenDev(null)}
+      />
+
+      <PullRequestDetail
+        pr={openPr}
+        isOpen={!!openPr}
+        onClose={() => setOpenPr(null)}
+        onOpenDeveloper={(name) => {
+          setOpenPr(null)
+          setOpenDev(DEVELOPER[name])
+        }}
       />
     </>
   )
