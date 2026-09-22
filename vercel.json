@@ -1,11 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npm run build",
+
+  "installCommand": "echo 'skipped: dist/ is committed, so no dependencies are needed to deploy'",
+  "buildCommand": "echo 'skipped: dist/ is committed — run npm run build locally and commit it'",
   "outputDirectory": "dist",
-  "redirects": [
-    { "source": "/", "destination": "/arvotracker", "permanent": false }
-  ],
-  "rewrites": [
-    { "source": "/arvotracker/:path*", "destination": "/arvotracker/index.html" }
-  ]
+
+  "redirects": [{ "source": "/", "destination": "/arvotracker", "permanent": false }],
+  "rewrites": [{ "source": "/arvotracker/:path*", "destination": "/arvotracker/index.html" }]
 }

@@ -10,17 +10,60 @@ over one set of data. Built on the o9 Design System (Arvo) and the shared
 
 ## Running it
 
+**You need nothing but Python.** The built app is committed, so a clone runs
+with no Node, no npm and no Arvo credential:
+
 ```bash
-npm install
-npm run dev
+python3 tools/serve.py
 ```
 
-Then open **http://localhost:3000/arvotracker** (the bare path redirects; `/`
-works too).
+Then open **http://localhost:8000/arvotracker/**.
+
+`tools/serve.py` is Python's own stdlib server plus one rule: anything under
+`/arvotracker` that is not a real file falls back to `index.html`. That is the
+same rule `vercel.json` applies in production, so local and deployed behave
+alike. `python3 -m http.server --directory dist` very nearly works, but it
+serves files and nothing else — `/arvotracker/` loads and then refreshing on
+`/arvotracker/analytics` returns 404, because that route only exists once the
+app is running.
+
+> **Do not run `npm install` just to look at this.** It fails with `E401`
+> against o9's private package feed, and you do not need it — the built front
+> end is already in the repository. npm is only for *changing* the source.
+
+### Changing the source
+
+Only then do you need Node 20 and feed access:
+
+```bash
+npm install
+npm run dev          # http://localhost:3000/arvotracker
+```
+
+### Why the build is committed
+
+`dist/` is in git on purpose. `@arvo/*` is published to a private Azure
+Artifacts feed, so no build host and no colleague can install it without a
+personal token — committing the output is what makes this repo clone-and-run
+for anyone, and what lets it deploy with no build step and no credential on the
+server.
+
+The cost is that **a change which is not rebuilt reaches nobody**, silently: the
+build is green, the tests pass, and the deployed screen is the previous one. So
+the build stamps a hash of the source into the bundle, and:
+
+```bash
+npm run check:bundle     # fails if dist/ does not match src/
+```
+
+Run `npm run build` and commit `dist/` with every source change. A hash rather
+than file timestamps, because git does not preserve mtimes — on a fresh clone
+every file carries the checkout time, so a timestamp check is meaningless
+exactly where a stranger would run it.
 
 ### One-time setup: the Arvo feed
 
-`npm install` needs a credential. `@arvo/react` and friends are published to
+Only needed to *change* the front end. `npm install` needs a credential. `@arvo/react` and friends are published to
 o9's private Azure Artifacts feed, not to public npm. The repo's `.npmrc` points
 the `@arvo` scope at that feed and deliberately carries **no token**.
 
@@ -310,20 +353,19 @@ impossible.
 
 ## Deploying to Vercel
 
-`vercel.json` is in the repo, so importing it gives you the right defaults:
-build `npm run build`, output `dist`, `/` redirects to `/arvotracker`, and any
-path under it falls back to the SPA.
+`vercel.json` is in the repo. Import it and there is nothing to configure:
+`/` redirects to `/arvotracker`, any path under it falls back to the SPA, and
+both the install and the build are skipped.
 
-**One thing you must set, or the build fails with `E401`.** Vercel runs
-`npm install`, which needs the private Arvo feed. Add an environment variable:
+**No environment variables, and no token on Vercel.** `dist/` is committed, so
+Vercel only serves files. That is deliberate: the alternative is an `NPM_RC`
+variable holding a feed PAT, and PATs expire — a deploy that breaks every
+ninety days for a reason nobody remembers is worse than a rebuild step you can
+see. It also means the credential never leaves your laptop.
 
-| Name | Value |
-|---|---|
-| `NPM_RC` | the `; begin auth token` block from "One-time setup" above, plus the `@arvo:registry=` line |
-
-Vercel writes `NPM_RC` to `.npmrc` before installing. Set it on Production,
-Preview and Development, and use a PAT with **Packaging: Read** only. PATs
-expire — when a deploy that used to work starts failing on `E401`, that is why.
+The trade is that **Vercel deploys whatever bundle you committed**. Run
+`npm run build` and `npm run check:bundle` before you push; the second one
+fails if you forgot the first.
 
 The build prunes itself. `npm run build` runs `tools/postbuild.mjs`, which
 drops the CJK fallback fonts `@arvo/assets` ships — **147 MB down to 9 MB**.
@@ -351,7 +393,7 @@ deploy that succeeds and serves a blank page:
 ## Before you push
 
 ```bash
-npm run build:verify
+npm run build:verify     # check-imports, then build, then check:bundle
 ```
 
 `vite build` on its own is **not** evidence — Rollup leaves an unresolved

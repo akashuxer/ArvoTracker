@@ -1,5 +1,8 @@
 node_modules/
-dist/
+# dist/ IS COMMITTED, deliberately: it is what lets a clone run with no Node,
+# no npm and no Arvo feed token, and what lets Vercel deploy without a build.
+# Rebuild and commit it with every source change -- `npm run check:bundle` fails
+# if you forget. See README, "Why the build is committed".
 
 # Never commit a feed credential. The repo's own .npmrc points the @arvo scope
 # at the feed and carries no token; a PAT belongs in your USER ~/.npmrc only.

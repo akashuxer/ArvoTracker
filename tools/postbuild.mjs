@@ -29,9 +29,12 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
+import { STAMP, hashSources } from './build-stamp.mjs'
 
 const DIST = 'dist'
-const KEEP = 'arvotracker'
+/* The app, and the stamp that says which source it was built from. */
+const KEEP = new Set(['arvotracker', path.basename(STAMP)])
+const APP = 'arvotracker'
 
 /* Matched on the family name rather than the extension: the Latin Noto faces
    are small and are the actual fallback, so only the CJK ones go. */
@@ -48,7 +51,7 @@ if (!fs.existsSync(DIST)) {
 
 let stale = 0
 for (const entry of fs.readdirSync(DIST)) {
-  if (entry === KEEP) continue
+  if (KEEP.has(entry)) continue
   const p = path.join(DIST, entry)
   stale += sizeOf(p)
   fs.rmSync(p, { recursive: true, force: true })
@@ -58,19 +61,29 @@ for (const entry of fs.readdirSync(DIST)) {
 /* ---- 2. CJK fonts -------------------------------------------------------- */
 
 let pruned = 0
-let count = 0
-walk(path.join(DIST, KEEP), (file) => {
+let prunedCount = 0
+walk(path.join(DIST, APP), (file) => {
   if (!CJK.test(path.basename(file))) return
   pruned += fs.statSync(file).size
   fs.rmSync(file)
-  count += 1
+  prunedCount += 1
 })
+
+/* ---- 3. Stamp the bundle with the source it came from -------------------- */
+
+/* `dist/` is committed, so it can fall behind the source silently. The stamp is
+   what `check-bundle-fresh` compares against before a push. */
+const { hash, count } = hashSources()
+fs.writeFileSync(
+  STAMP,
+  `${JSON.stringify({ hash, count, builtAt: new Date().toISOString() }, null, 2)}\n`
+)
 
 const total = sizeOf(DIST)
 console.log(
-  `postbuild: pruned ${count} CJK font files (${mb(pruned)})` +
+  `postbuild: pruned ${prunedCount} CJK font files (${mb(pruned)})` +
     (stale ? `, ${mb(stale)} of stale output` : '') +
-    ` -- dist is now ${mb(total)}`
+    ` -- dist is now ${mb(total)}, stamped from ${count} source files`
 )
 
 /* A build that quietly stops pruning is a build that quietly gets 20x bigger,

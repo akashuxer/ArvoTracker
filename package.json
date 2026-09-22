@@ -15,7 +15,8 @@
     "build": "vite build && node tools/postbuild.mjs",
     "preview": "vite preview",
     "check": "node tools/check-imports.mjs",
-    "build:verify": "npm run check && vite build"
+    "build:verify": "npm run check && npm run build && npm run check:bundle",
+    "check:bundle": "node tools/check-bundle-fresh.mjs"
   },
   "dependencies": {
     "@arvo/assets": "3.1.2",
