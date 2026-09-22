@@ -49,7 +49,15 @@ export default defineConfig({
      pushState path agrees on one prefix. */
   base: '/arvotracker/',
   build: {
-    outDir: 'dist',
+    /* Into a folder that MATCHES `base`, not into `dist` directly.
+       With base '/arvotracker/', Vite writes index.html referencing
+       /arvotracker/assets/*. Building into `dist` put those files at
+       dist/assets/*, so any host serving `dist` at the root answered the asset
+       requests with a 404 and rendered a blank page -- the deploy "succeeds"
+       and the site is empty, which is the worst way for this to fail.
+       Building into dist/arvotracker makes the served tree and the base agree,
+       and `vercel.json` sends `/` on to it. */
+    outDir: 'dist/arvotracker',
     emptyOutDir: true,
   },
   server: {

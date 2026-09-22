@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "redirects": [
+    { "source": "/", "destination": "/arvotracker", "permanent": false }
+  ],
+  "rewrites": [
+    { "source": "/arvotracker/:path*", "destination": "/arvotracker/index.html" }
+  ]
+}

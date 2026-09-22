@@ -308,6 +308,35 @@ kit's global classes (`.report-tile`, `.data-table__num`, `.link-cell`), which
 reads better as one flat namespace. The prefix is what makes a collision
 impossible.
 
+## Deploying to Vercel
+
+`vercel.json` is in the repo, so importing it gives you the right defaults:
+build `npm run build`, output `dist`, `/` redirects to `/arvotracker`, and any
+path under it falls back to the SPA.
+
+**One thing you must set, or the build fails with `E401`.** Vercel runs
+`npm install`, which needs the private Arvo feed. Add an environment variable:
+
+| Name | Value |
+|---|---|
+| `NPM_RC` | the `; begin auth token` block from "One-time setup" above, plus the `@arvo:registry=` line |
+
+Vercel writes `NPM_RC` to `.npmrc` before installing. Set it on Production,
+Preview and Development, and use a PAT with **Packaging: Read** only. PATs
+expire — when a deploy that used to work starts failing on `E401`, that is why.
+
+Two things about the build layout, because getting either wrong produces a
+deploy that succeeds and serves a blank page:
+
+- The app builds into **`dist/arvotracker`**, not `dist`, so the served tree
+  matches `base: '/arvotracker/'`. Building into `dist` left the assets at
+  `dist/assets/*` while `index.html` asked for `/arvotracker/assets/*`, and
+  every one of them 404'd.
+- To serve at the domain root instead: set `base: '/'` and `outDir: 'dist'` in
+  `vite.config.js`, drop the redirect from `vercel.json`, and remove the
+  `landOnBase` plugin. Nothing in `src/` depends on the prefix except
+  `sectionFromPath` in `App.jsx`.
+
 ## Before you push
 
 ```bash
