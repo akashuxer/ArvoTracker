@@ -36,7 +36,7 @@ export const TEAMS = [
   { id: 'grid', name: 'Grid Platform', contact: 'Sofia Almeida', repos: ['platform-grid'] },
   { id: 'admin', name: 'Admin & Identity', contact: 'Tomas Novak', repos: ['platform-admin'] },
   { id: 'insights', name: 'Insights & Reporting', contact: 'Hannah Boateng', repos: ['platform-reporting'] },
-  { id: 'qa', name: 'Quality Automation', contact: 'Akash Upadhyay', repos: ['o9-performance-utility', 'o9-qaa'] },
+  { id: 'qa', name: 'Quality Automation', contact: 'Akash Upadhyay', repos: ['platform-quality'] },
   { id: 'arvo', name: 'Design System', contact: 'Ines Duarte', repos: ['o9-design-system'] },
 ]
 
@@ -92,7 +92,7 @@ export const WORK_ITEMS = [
     id: 'ARV-407',
     title: 'ArvoContextMenu never sets .open, and onSelect never fires',
     problem:
-      'Two defects in 3.1.2 that together make the component unusable without a workaround. Quality Automation carries a local shim in @o9qa/kit for every table in the QA hub.',
+      'Two defects in 3.1.2 that together make the component unusable without a workaround. Quality Automation carries a local shim in @o9qa/kit for every table it renders.',
     type: 'bug',
     area: 'Component',
     component: 'ArvoContextMenu',
@@ -139,7 +139,7 @@ export const WORK_ITEMS = [
     id: 'ARV-421',
     title: 'ArvoPopover teleports to 0,0 while closing',
     problem:
-      'The position is cleared one frame before the exit transition finishes, so the panel jumps to the top-left corner on the way out. Visible on every popover in the QA hub.',
+      'The position is cleared one frame before the exit transition finishes, so the panel jumps to the top-left corner on the way out. Visible on every popover in the product.',
     type: 'bug',
     area: 'Component',
     component: 'ArvoPopover',

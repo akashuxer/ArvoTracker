@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { ArvoSearch, ArvoChip, ArvoBadge, ArvoButton, ArvoAvatar, ArvoIconButton } from '@arvo/react'
 import { ViewLoading } from '@o9qa/kit'
 /**
- * QA Utility Hub -- the tool chooser.
+ * The hub -- the tool chooser.
  *
  * Renders inside the standard shell; the header, rail and launchbar belong to
  * the shell, not to this view.

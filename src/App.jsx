@@ -16,10 +16,9 @@ import ImportScanPanel from './components/ImportScanPanel'
 /**
  * Arvo Roadmap.
  *
- * A separate application from the QA Utility Hub, mounted at /arvotracker on its
- * own Vite server. It borrows the shell chrome and the shared kit -- which is
- * what those packages are for -- and shares nothing else: no routes, no backend,
- * no build output.
+ * Mounted at /arvotracker on its own Vite server. It renders on the shared
+ * @o9qa chrome and kit -- which is what those packages are for -- and owns
+ * nothing else: no backend, no server, no build step beyond Vite.
  *
  * Five sections, and they are not five apps. Roadmap, Modernization, Adoption
  * and Violations are four views of the same programme of work, and each links
@@ -38,8 +37,8 @@ const SECTIONS = [
   {
     id: 'roadmap',
     label: 'Roadmap',
-    /* Verified o9con names only -- see tools/bi_to_o9con_map.json. A guessed
-       name renders an empty box and nothing errors. */
+    /* Verified o9con names only -- an invented one renders an empty box and
+       nothing errors, so they are never guessed. */
     icon: 'clipboard',
     title: 'Roadmap',
     lede: 'Every Arvo work item in one place: requests, bugs, enhancements and what is coming.',
@@ -133,8 +132,8 @@ function Shell() {
 
   /* How deep into this app's own history we are. `history.length` cannot answer
      it -- that counts forward entries too -- so each push stamps its own depth
-     and popstate reads it back. Same mechanism as the QA hub, for the same
-     reason: the back button has to behave like the browser's. */
+     and popstate reads it back. The back button has to behave like the
+     browser's, or it is worse than not being there. */
   const depthRef = useRef(window.history.state?.trkDepth ?? 0)
   const [canGoBack, setCanGoBack] = useState((window.history.state?.trkDepth ?? 0) > 0)
 

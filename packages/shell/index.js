@@ -1,5 +1,5 @@
 /**
- * @o9qa/shell -- the QA Utility Hub frame.
+ * @o9qa/shell -- the application frame.
  *
  * The chrome every utility sits inside: the rail, the header and its
  * breadcrumb, the tool launchbar, user settings, notifications, and the hub

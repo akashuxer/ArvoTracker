@@ -1,7 +1,7 @@
 /**
  * @o9qa/kit -- the shared QA Utility building blocks.
  *
- * Every tool in the QA Utility Hub renders from these, so a table behaves the
+ * Every app built on this kit renders from these, so a table behaves the
  * same whichever utility you are in, and a fix reaches all of them at once.
  *
  *   import { DataTable, KpiCell } from '@o9qa/kit'

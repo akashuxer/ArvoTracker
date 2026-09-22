@@ -3,7 +3,8 @@
 An internal tracker for design-system work, platform modernization and Arvo
 implementation violations.
 
-Four sections — **Roadmap**, **Modernization**, **Violations**, **Analytics** —
+Five sections — **Roadmap**, **Modernization**, **Adoption**, **Violations**,
+**Analytics** —
 over one set of data. Built on the o9 Design System (Arvo) and the shared
 `@o9qa` component layer.
 
@@ -63,9 +64,10 @@ There is no workaround. Arvo is private, and a clone carries no entitlement.
 
 ```
 src/                 this app
-  views/             the four sections
+  views/             the five sections
   components/        drawers, the create/edit form, the Kanban board, marks
-  data/              enums, the Arvo rule registry, mock data, the store
+  data/              enums, rules, the component catalogue, mock data, the store
+  lib/               time bucketing and period-over-period comparison
   styles/            this app's own CSS layer, every class prefixed trk-
 packages/kit/        @o9qa/kit   — tables, KPIs, charts, filters, the rules
 packages/shell/      @o9qa/shell — rail, header, breadcrumb, launchbar, settings
@@ -90,9 +92,9 @@ import { ArvoButton, ArvoSelect, ArvoPanel } from '@arvo/react'
 
 ### The vendored shared layer
 
-`packages/kit` and `packages/shell` are a **copy**. The canonical versions live
-in the QA Utility Hub repository, where they are also used by the o9 Performance
-Utility.
+`packages/kit` and `packages/shell` are a **copy**, kept in-tree so this repo
+builds and deploys on its own. The canonical versions live in their own
+repository, where several apps consume them.
 
 Both copies are marked `"private": true` and their `publishConfig` is removed, so
 neither can be published over the real package on the o9UI feed. Publishing

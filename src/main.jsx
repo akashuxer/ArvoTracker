@@ -27,6 +27,20 @@ import '../vendor/o9/o9-foundation.css'
    product without restating any of it. */
 import '@o9qa/kit/styles'
 
+/* Highcharts' accessibility module: keyboard navigation through data points, a
+   screen-reader description of each series, and the data table behind every
+   chart. Not on by default -- Highcharts warns about its absence and then
+   renders an unusable chart anyway.
+   This app spends a whole section asking other teams to respect ARVO-A11Y-003
+   (keyboard support). Shipping eleven charts nobody can tab through would make
+   that hard to say with a straight face. */
+/* Highcharts itself first. The module attaches to the Highcharts singleton at
+   import time, and on its own it loaded before that singleton existed and threw
+   reading `.AST` of undefined -- taking the whole app down rather than just
+   failing to add accessibility. */
+import 'highcharts'
+import 'highcharts/modules/accessibility'
+
 import { publishVizVars, applyChartTheme } from '@o9qa/kit'
 import './styles/tracker.css'
 import App from './App'

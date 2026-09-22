@@ -1,8 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { ArvoIconButton } from '@arvo/react'
 
-/* The launchers, and the panel each one opens. Kept as-is from
- * spend-domain-analysis. */
+/* The launchers, and the panel each one opens. */
 export const PANELS = [
   { id: 'settings', icon: 'cog', label: 'Settings', title: 'User Settings' },
   { id: 'help', icon: 'question-circle', label: 'Help', title: 'Help' },

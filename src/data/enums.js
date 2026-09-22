@@ -14,9 +14,9 @@
  * `icon` on severity, the label itself on status.
  */
 
-/* Every o9con name in this file is taken from tools/bi_to_o9con_map.json, whose
-   values are verified against @arvo/assets current-icons.json. An invented name
-   does not error -- it renders an empty box -- so they are never guessed. */
+/* Every o9con name in this file is verified against @arvo/assets
+   current-icons.json. An invented name does not error -- it renders an empty
+   box -- so they are never guessed. */
 export const TYPES = [
   { id: 'new-request', label: 'New Request', icon: 'plus-circle' },
   { id: 'bug', label: 'Bug', icon: 'bug' },

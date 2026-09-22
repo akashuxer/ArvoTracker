@@ -1,6 +1,6 @@
 /**
- * Hand-written, because the source is JSX rather than TypeScript. o9.Qaa and
- * any other TypeScript consumer typechecks against this file, so it is part
+ * Hand-written, because the source is JSX rather than TypeScript. Any
+ * TypeScript consumer typechecks against this file, so it is part
  * of the public contract: changing a prop here is a breaking change.
  */
 import type { ReactNode, RefObject } from 'react'

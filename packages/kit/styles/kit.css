@@ -1,10 +1,9 @@
 /*
- * Layout shell for the o9 Performance Utility.
+ * Layout shell.
  *
- * Ported from spend-domain-analysis: a dark icon rail, header, a canvas that
- * holds white report tiles, and a right launchbar with an optional docked
- * panel. Values follow that app's structure -- 1px shell seams, a 12px density
- * gap between tiles, and 20px of canvas inset either side.
+ * A dark icon rail, a header, a canvas holding white report tiles, and a right
+ * launchbar with an optional docked panel. 1px shell seams, a 12px density gap
+ * between tiles, and 20px of canvas inset either side.
  *
  * Colours use the Arvo SEMANTIC palette (s- surface, b- border, t- text,
  * i- icon). Data visuals are the only place ArvoVisualPalette applies.
@@ -629,7 +628,7 @@ body {
 }
 
 /* ============================================================
- * QA Utility Hub -- the landing page.
+ * The hub -- the landing page.
  *
  * No rails: nothing is selected yet. A calm canvas with one decision on it.
  * ========================================================== */
