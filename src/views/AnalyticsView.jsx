@@ -445,6 +445,10 @@ export default function AnalyticsView() {
   }
 
   const per = g.vs
+  /* Which of the two grids owns the expanded tile. Rendering the other one
+     anyway left an empty grid and one density gap of dead space. */
+  const WIDE_TILES = ['migration', 'roadmap-mix']
+  const isWideExpanded = WIDE_TILES.includes(expandedId)
 
   return (
     <>
@@ -525,6 +529,7 @@ export default function AnalyticsView() {
         <Hint text="Changes the grain of every time-series chart and of the movement figure on each KPI above. Movement compares this period SO FAR against the same slice of the one before it — 22 days against 22 days — so a month that is not over yet does not read as a collapse. Migration is a monthly snapshot by nature and stays monthly at any grain." />
       </div>
 
+      {!isWideExpanded && (
       <div className={`metric-grid${expandedId ? ' metric-grid--solo' : ''}`}>
         <ExpandableTile
           id="backlog"
@@ -602,12 +607,21 @@ export default function AnalyticsView() {
           <Chart options={charts.byRule} />
         </ExpandableTile>
 
+      </div>
+      )}
+
+      {/* These two get a row to themselves, half each.
+          They carried ten and eleven categories inside a third of a
+          three-column grid, so `span 2` was the best that grid could offer --
+          two thirds each, one per row, with the remaining third left empty
+          beside them. A grid of two is the shape the content actually wants. */}
+      {(!expandedId || isWideExpanded) && (
+      <div className={`trk-grid-2${isWideExpanded ? ' trk-grid-2--solo' : ''}`}>
         <ExpandableTile
           id="migration"
           title="Modernization progress by area"
           expandedId={expandedId}
           onToggle={setExpandedId}
-          className="metric-grid__wide"
         >
           <Chart options={charts.migration} />
         </ExpandableTile>
@@ -617,11 +631,11 @@ export default function AnalyticsView() {
           title="Roadmap items by type and status"
           expandedId={expandedId}
           onToggle={setExpandedId}
-          className="metric-grid__wide"
         >
           <Chart options={charts.roadmap} />
         </ExpandableTile>
       </div>
+      )}
 
       <ExpandableTile
         id="developers"

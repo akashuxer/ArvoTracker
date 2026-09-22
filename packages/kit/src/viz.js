@@ -37,13 +37,47 @@ export const SERIES = [
   ArvoVisualPalette.yellow.darker,
 ]
 
-/* Indicator roles, named by MEANING rather than direction. "Up" is not
- * favourable for latency or error rate, so callers decide from the measure. */
+/**
+ * Indicator roles, named by MEANING rather than direction. "Up" is not
+ * favourable for latency or error rate, so callers decide from the measure.
+ *
+ * Three variants per role, because one colour cannot do all three jobs. A shade
+ * dark enough to read as 12px text is too heavy for a bar, and a shade light
+ * enough to sit behind a bar is invisible as text. One value drove both and the
+ * bar inherited the text's darkness.
+ *
+ *   INDICATOR        text -- deltas, movement figures. 4.5:1 or better.
+ *   INDICATOR_FILL   the bar itself. 3:1 or better, brighter.
+ *   INDICATOR_TRACK  the groove behind the bar. The family's own tint.
+ *
+ * The track used to be neutral grey whatever the bar meant, so a bar and its
+ * own background belonged to different systems. Tinting it with the family's
+ * `light` shade makes the pair read as one object, and the empty part of the
+ * bar says which measure it is even before the fill is long enough to.
+ *
+ * Caution moved from `yellow.darkest` to orange. The yellow family's only
+ * readable shades are olive-brown -- a warning that looks like mud -- because
+ * yellow cannot be darkened for contrast without leaving the hue behind.
+ */
 export const INDICATOR = {
   favorable: ArvoVisualPalette.green.darker,
   unfavorable: ArvoVisualPalette.red.dark,
-  caution: ArvoVisualPalette.yellow.darkest,
+  caution: ArvoVisualPalette.orange.darker,
   neutral: ArvoVisualPalette.blue.base,
+}
+
+export const INDICATOR_FILL = {
+  favorable: ArvoVisualPalette.green.dark,
+  unfavorable: ArvoVisualPalette.red.dark,
+  caution: ArvoVisualPalette.orange.base,
+  neutral: ArvoVisualPalette.blue.base,
+}
+
+export const INDICATOR_TRACK = {
+  favorable: ArvoVisualPalette.green.light,
+  unfavorable: ArvoVisualPalette.red.light,
+  caution: ArvoVisualPalette.orange.light,
+  neutral: ArvoVisualPalette.blue.light,
 }
 
 /** Ordered shades within one family, for heatmaps and intensity scales. */
@@ -52,6 +86,12 @@ export const sequential = (family) => SHADES.map((s) => ArvoVisualPalette[family
 /** Publish the palette to CSS so stylesheets share this one source. */
 export function publishVizVars(root = document.documentElement) {
   Object.entries(INDICATOR).forEach(([role, color]) => root.style.setProperty(`--viz-${role}`, color))
+  Object.entries(INDICATOR_FILL).forEach(([role, color]) =>
+    root.style.setProperty(`--viz-${role}-fill`, color)
+  )
+  Object.entries(INDICATOR_TRACK).forEach(([role, color]) =>
+    root.style.setProperty(`--viz-${role}-track`, color)
+  )
   FAMILIES.forEach((fam) => {
     const kebab = fam.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)
     SHADES.forEach((sh) => root.style.setProperty(`--arvo-viz-${kebab}-${sh}`, ArvoVisualPalette[fam][sh]))

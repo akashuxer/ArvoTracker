@@ -429,10 +429,28 @@ body {
 
 .kpi-cell__visual { display: flex; flex-direction: column; gap: var(--arvo-space-4); margin-top: var(--arvo-space-6); }
 .kpi-cell__track { width: 100%; height: 6px; background-color: var(--arvo-color-s-layer-02, #f2f2f2); }
-.kpi-cell__fill { height: 100%; background-color: var(--arvo-color-s-theme, #010101); }
-.kpi-cell__fill--favorable   { background-color: var(--viz-favorable); }
-.kpi-cell__fill--unfavorable { background-color: var(--viz-unfavorable); }
-.kpi-cell__fill--caution     { background-color: var(--viz-caution); }
+
+/* Neutral is BLACK, and stays black.
+   This read `--arvo-color-s-theme`, so a bar with no favourability took the
+   accent of whichever theme was picked -- a measure with no inherent direction
+   was being tinted green in one theme and indigo in another, which is exactly
+   the meaning the colour is not supposed to carry. `-static` is Arvo's own
+   suffix for a value the themes do not touch. */
+.kpi-cell__fill { height: 100%; background-color: var(--arvo-color-s-black-static, #010101); }
+
+/* A bar is a graphical object, not text: it takes the FILL shade, which is
+   brighter than the one the delta above it uses. */
+.kpi-cell__fill--favorable   { background-color: var(--viz-favorable-fill); }
+.kpi-cell__fill--unfavorable { background-color: var(--viz-unfavorable-fill); }
+.kpi-cell__fill--caution     { background-color: var(--viz-caution-fill); }
+
+/* The groove takes the same family as the bar in it, so the pair reads as one
+   object rather than a coloured bar sitting on unrelated grey. `:has()` rather
+   than a modifier on the track, because the state is already declared once on
+   the fill and stating it twice is one more thing to get out of step. */
+.kpi-cell__track:has(.kpi-cell__fill--favorable)   { background-color: var(--viz-favorable-track); }
+.kpi-cell__track:has(.kpi-cell__fill--unfavorable) { background-color: var(--viz-unfavorable-track); }
+.kpi-cell__track:has(.kpi-cell__fill--caution)     { background-color: var(--viz-caution-track); }
 
 /* The bar never stands alone: a proportion with no denominator is the thing
    that made these read as misleading progress meters. */
