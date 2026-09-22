@@ -1,35 +1,40 @@
 import { useMemo, useState } from 'react'
+import { ArvoChip } from '@arvo/react'
 import { ArvoVisualPalette, Chart, DataTable, ExpandableTile, KpiCell, SERIES, ViewLoading } from '@o9qa/kit'
 import { useTracker } from '../data/store'
 import { CLOSED_STATUSES, SETTLED_VIOLATION_STATUSES, SEVERITIES, STATUSES, TYPES } from '../data/enums'
 import { RULE } from '../data/rules'
-import { TEAM, TEAMS } from '../data/mock'
-import { Hint, MigrationBar } from '../components/marks'
+import { DEVELOPER, TEAM, TODAY, adoptionOf } from '../data/mock'
+import { AdoptionBar, Hint } from '../components/marks'
+import { DAY, GRAIN, GRAINS, bucketBy, bucketCount, formatMovement, labelFor, movement, periods, toDate } from '../lib/series'
+import DeveloperDetail from '../components/DeveloperDetail'
 
 /**
- * Analytics.
+ * Analytics -- how everything is moving.
  *
- * The rule this view is built around: **the unit of analysis is a team, a
- * repository, a product area or a rule — never a person.** The author is on the
- * violation, so the Arvo team knows who to talk to. Nothing here counts by
- * author, and that is a deliberate refusal rather than an omission: a
- * leaderboard of who tripped the most rules would make people avoid the scanner,
- * and the scanner only works if people want it to run.
+ * Every headline figure here is a comparison, not a total. "68 open findings"
+ * is a number nobody can act on; "68, down 14 on last month" is. That is what
+ * the sparkline behind each KPI is for -- one delta can be noise, and twelve
+ * months of shape says whether it is.
+ *
+ * The M / Q / Y switch changes the GRAIN of every time chart at once. They are
+ * the same questions at three zoom levels, and letting them drift apart would
+ * put a twelve-month story beside a three-year one with nothing saying which
+ * was which.
+ *
+ * On naming people: this view used to refuse to, on the grounds that a count of
+ * rules broken is a stick. It names them now, at the product owner's direction,
+ * and the design absorbs that rather than fighting it -- the developer chart
+ * counts OPEN findings rather than total-ever (which only measures who has been
+ * here longest), the summary table sorts by adoption descending so it opens on
+ * who is furthest along, and every row carries a trend beside its number so
+ * somebody climbing is never mistaken for somebody stuck.
  *
  * Colour comes from ArvoVisualPalette -- every chart here is a data visual.
  * Severity uses ORDERED SHADES OF ONE FAMILY because severity is ordered;
- * categories and teams use distinguishable families because they are not.
+ * categories, areas and people use distinguishable families because they are
+ * not.
  */
-
-const WEEK = 7 * 86_400_000
-
-/** Monday-anchored week key, so "this week" means the same thing all week. */
-function weekStart(value) {
-  const d = new Date(value)
-  const day = (d.getUTCDay() + 6) % 7
-  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - day)
-}
-
 const tally = (rows, key) => {
   const map = new Map()
   rows.forEach((r) => {
@@ -40,8 +45,6 @@ const tally = (rows, key) => {
   return [...map.entries()].sort((a, b) => b[1] - a[1])
 }
 
-/* Shared chrome. Every chart in this view is a count of something over one
-   dimension, so they should differ only where the data differs. */
 const barOptions = (categories, data, color, unitName) => ({
   chart: { type: 'bar', height: Math.max(220, categories.length * 30 + 70) },
   xAxis: {
@@ -50,9 +53,8 @@ const barOptions = (categories, data, color, unitName) => ({
     /* Highcharts caps a category label at a third of the chart width and then
        ellipsises it, which turned "Unsupported typography" and "Non-Arvo
        component used" into "Unsupported…" and "Non-Arvo…" -- indistinguishable
-       from each other in a chart whose whole job is telling them apart.
-       `whiteSpace: normal` lets the label wrap to a second line instead, and
-       the row height above makes room for it. */
+       in a chart whose whole job is telling them apart. `whiteSpace: normal`
+       wraps to a second line instead. */
     labels: { style: { width: 132, whiteSpace: 'normal', textOverflow: 'none' } },
   },
   yAxis: { title: { text: unitName }, allowDecimals: false },
@@ -62,46 +64,142 @@ const barOptions = (categories, data, color, unitName) => ({
 })
 
 export default function AnalyticsView() {
-  const { status, violations, areas, workItems } = useTracker()
+  const { status, violations, areas, areaHistory, workItems, pullRequests, developers } = useTracker()
   const [expandedId, setExpandedId] = useState(null)
+  const [grain, setGrain] = useState('month')
+  const [openDev, setOpenDev] = useState(null)
 
-  const charts = useMemo(() => {
+  const g = GRAIN[grain]
+
+  /* ---- Series ----------------------------------------------------------- */
+
+  const series = useMemo(() => {
     if (!violations.length) return null
 
-    /* ---- Weekly series ---- */
-    const detectedByWeek = new Map()
-    const resolvedByWeek = new Map()
-    violations.forEach((v) => {
-      const w = weekStart(v.detectedAt)
-      detectedByWeek.set(w, (detectedByWeek.get(w) ?? 0) + 1)
-      if (v.resolvedAt) {
-        const r = weekStart(v.resolvedAt)
-        resolvedByWeek.set(r, (resolvedByWeek.get(r) ?? 0) + 1)
-      }
-    })
-    const weeks = [...new Set([...detectedByWeek.keys(), ...resolvedByWeek.keys()])].sort((a, b) => a - b)
-    const weekLabels = weeks.map((w) => new Date(w).toISOString().slice(5, 10))
+    const detected = bucketCount(violations, grain, (v) => v.detectedAt)
+    const resolved = bucketCount(violations, grain, (v) => v.resolvedAt)
 
-    /* ---- Severity: ordered, so ordered shades of ONE family ---- */
+    /* Adoption per period is a RATIO, not a count. A quiet month with two very
+       Arvo pull requests is a good month, not a small one, and bucketing by
+       count would show it as the opposite. */
+    const merged = pullRequests.filter((p) => p.status === 'merged')
+    const withUi = merged.map((p) => ({ p, a: adoptionOf(p) })).filter((r) => r.a)
+    const adoption = bucketBy(withUi, grain, (r) => r.p.mergedAt, (rows) => {
+      const a = rows.reduce((n, r) => n + r.a.arvo, 0)
+      const l = rows.reduce((n, r) => n + r.a.legacy, 0)
+      return a + l ? Math.round((a / (a + l)) * 100) : null
+    })
+
+    /* Migration is monthly by nature -- AREA_HISTORY holds thirteen snapshots
+       and nothing finer exists -- so this one series stays monthly whichever
+       grain is selected, and its tile says so rather than pretending. */
+    const migrationKeys = periods('month', 13)
+    const migration = migrationKeys.map((_, i) =>
+      areas.reduce((n, a) => n + (areaHistory[a.id]?.[i] ?? 0), 0)
+    )
+
+    return {
+      detected,
+      resolved,
+      adoption,
+      migration: { labels: migrationKeys.map((k) => labelFor(k, 'month')), values: migration },
+      totalComponents: areas.reduce((n, a) => n + a.total, 0),
+    }
+  }, [violations, pullRequests, areas, areaHistory, grain])
+
+  /* ---- Headline movement ------------------------------------------------ */
+
+  const kpis = useMemo(() => {
+    if (!series) return null
+    const active = violations.filter((v) => !SETTLED_VIOLATION_STATUSES.has(v.status))
+
+    /* Open findings at the END of each period -- a running balance, not a
+       per-period count. It is the only series here that answers "is the backlog
+       growing", which is the question a design-system lead actually has.
+       Detected and resolved each tell half of it.
+       Each bucket's end is the NEXT bucket's start, so the boundary is exact at
+       every grain rather than a rounded 31 or 7 days. */
+    const openAt = (t) =>
+      violations.filter(
+        (v) =>
+          new Date(v.detectedAt).getTime() < t &&
+          (!v.resolvedAt || new Date(v.resolvedAt).getTime() >= t)
+      ).length
+
+    const keys = periods(grain)
+    const backlog = keys.map((k, i) => openAt(keys[i + 1] ?? TODAY.getTime() + DAY))
+
+    /* The same point one period back, for the headline comparison. */
+    const then = new Date(TODAY)
+    if (grain === 'year') then.setUTCFullYear(then.getUTCFullYear() - 1)
+    else if (grain === 'quarter') then.setUTCMonth(then.getUTCMonth() - 3)
+    else then.setUTCMonth(then.getUTCMonth() - 1)
+
+    /* Flows use `toDate`, snapshots use `movement`.
+       Comparing a 22-day month against a complete one reported every flow as
+       down 40-50% when nothing had happened except the month not being over. */
+    return {
+      detected: toDate(violations, grain, (v) => v.detectedAt, { higherIsBetter: false }),
+      resolved: toDate(violations, grain, (v) => v.resolvedAt, { higherIsBetter: true }),
+      detectedSeries: series.detected.values,
+      resolvedSeries: series.resolved.values,
+      /* A balance is already a point in time, so it is compared point to point:
+         open NOW against open on the same day one period back.
+         Reading it off the bucket series instead compared "now" with "the end of
+         last month" -- a real number, but not the one the label "vs same point
+         last month" claims, and three weeks apart rather than a month. */
+      backlog: movement(
+        { values: [openAt(then.getTime()), openAt(TODAY.getTime() + DAY)] },
+        { higherIsBetter: false }
+      ),
+      backlogSeries: backlog,
+      adoption: toDate(
+        pullRequests.filter((p) => p.status === 'merged').map((p) => ({ p, a: adoptionOf(p) })).filter((r) => r.a),
+        grain,
+        (r) => r.p.mergedAt,
+        {
+          higherIsBetter: true,
+          /* A ratio, so the slice is reduced rather than counted. */
+          reduce: (rows) => {
+            const a = rows.reduce((n, r) => n + r.a.arvo, 0)
+            const l = rows.reduce((n, r) => n + r.a.legacy, 0)
+            return a + l ? Math.round((a / (a + l)) * 100) : 0
+          },
+        }
+      ),
+      migration: movement({ values: series.migration.values }, { higherIsBetter: true }),
+      activeNow: active.length,
+      critical: active.filter((v) => v.severity === 'critical').length,
+      openItems: workItems.filter((w) => !CLOSED_STATUSES.has(w.status)).length,
+      totalComponents: series.totalComponents,
+    }
+  }, [series, violations, pullRequests, workItems, grain])
+
+  /* ---- Charts ----------------------------------------------------------- */
+
+  const charts = useMemo(() => {
+    if (!series || !kpis) return null
+
     const severityCounts = SEVERITIES.map((s) => ({
       name: s.label,
       y: violations.filter((v) => v.severity === s.id).length,
     }))
-    /* Darkest for Critical down to base for Low: the ramp itself carries the
-       order, which a set of unrelated hues cannot.
-       It stops at `base` rather than running on to `soft`. red.soft is about
-       2.1:1 against the white tile -- below the 3:1 a filled graphical object
-       needs, which is ARVO-A11Y-002, the rule this app spends a whole section
-       asking other teams to respect. */
+    /* Darkest for Critical down to base for Low: the ramp carries the order. It
+       stops at `base` rather than running on to `soft`, which is about 2.1:1
+       against the white tile -- below the 3:1 a filled graphical object needs,
+       and that is ARVO-A11Y-002, one of this app's own rules. */
     const severityShades = ['darkest', 'darker', 'dark', 'base']
 
     const byCategory = tally(violations, 'category')
     const byArea = tally(violations, (v) => areas.find((a) => a.id === v.productArea)?.name ?? v.productArea)
-    const byTeam = tally(violations, (v) => TEAM[v.team]?.name ?? v.team)
     const byRule = tally(violations, 'ruleId').slice(0, 8)
 
-    /* ---- Modernization: four parts of a whole, per area ---- */
-    const areaNames = areas.map((a) => a.name)
+    /* OPEN findings per developer, not total ever raised. Total-ever ranks
+       whoever has been on the team longest, which is the opposite of a useful
+       signal. Open is what is still costing something. */
+    const openViolations = violations.filter((v) => !SETTLED_VIOLATION_STATUSES.has(v.status))
+    const byDeveloper = tally(openViolations, 'author')
+
     const migrationSeries = [
       { key: 'migrated', name: 'Migrated', color: ArvoVisualPalette.green.dark },
       { key: 'partial', name: 'Partially migrated', color: ArvoVisualPalette.blue.bright },
@@ -109,33 +207,71 @@ export default function AnalyticsView() {
       { key: 'blocked', name: 'Blocked', color: ArvoVisualPalette.red.dark },
     ].map((s) => ({ name: s.name, color: s.color, data: areas.map((a) => a[s.key]) }))
 
-    /* ---- Roadmap: type x status ---- */
-    const statusLabels = STATUSES.map((s) => s.label)
     const typeSeries = TYPES.map((t, i) => ({
       name: t.label,
       color: SERIES[i],
       data: STATUSES.map((s) => workItems.filter((w) => w.type === t.id && w.status === s.id).length),
     }))
 
+    const axisTitle = g.axis
+
     return {
-      weekly: {
-        chart: { type: 'column', height: 280 },
-        xAxis: { categories: weekLabels, title: { text: 'Week beginning' } },
-        yAxis: { title: { text: 'Violations detected' }, allowDecimals: false },
+      backlog: {
+        chart: { type: 'area', height: 300 },
+        xAxis: { categories: series.detected.labels, title: { text: axisTitle } },
+        yAxis: { title: { text: 'Open at period end' }, allowDecimals: false },
         legend: { enabled: false },
-        plotOptions: { column: { borderWidth: 0, color: ArvoVisualPalette.blue.base } },
-        series: [{ name: 'Detected', data: weeks.map((w) => detectedByWeek.get(w) ?? 0) }],
+        plotOptions: { area: { color: ArvoVisualPalette.blue.base, fillOpacity: 0.18, lineWidth: 2 } },
+        series: [{ name: 'Open', data: kpis.backlogSeries }],
       },
       newVsResolved: {
-        chart: { type: 'line', height: 280 },
-        xAxis: { categories: weekLabels, title: { text: 'Week beginning' } },
+        chart: { type: 'line', height: 300 },
+        xAxis: { categories: series.detected.labels, title: { text: axisTitle } },
         yAxis: { title: { text: 'Violations' }, allowDecimals: false },
         series: [
-          { name: 'Detected', color: ArvoVisualPalette.orange.base, data: weeks.map((w) => detectedByWeek.get(w) ?? 0) },
-          { name: 'Resolved', color: ArvoVisualPalette.green.dark, data: weeks.map((w) => resolvedByWeek.get(w) ?? 0) },
+          { name: 'Detected', color: ArvoVisualPalette.orange.base, data: series.detected.values },
+          { name: 'Resolved', color: ArvoVisualPalette.green.dark, data: series.resolved.values },
         ],
       },
-      byCategory: barOptions(byCategory.map((r) => r[0]), byCategory.map((r) => r[1]), ArvoVisualPalette.purple.base, 'Violations'),
+      adoption: {
+        chart: { type: 'line', height: 300 },
+        xAxis: { categories: series.adoption.labels, title: { text: axisTitle } },
+        yAxis: { title: { text: 'Arvo share of UI uses' }, min: 0, max: 100, labels: { format: '{value}%' } },
+        legend: { enabled: false },
+        series: [
+          {
+            name: 'Adoption',
+            color: ArvoVisualPalette.green.dark,
+            /* connectNulls, so a period nobody merged in is a gap bridged by the
+               line rather than a plunge to zero. */
+            connectNulls: true,
+            data: series.adoption.values,
+          },
+        ],
+      },
+      migrationTrend: {
+        chart: { type: 'area', height: 300 },
+        xAxis: { categories: series.migration.labels, title: { text: 'Month' } },
+        yAxis: {
+          title: { text: 'Components on Arvo' },
+          allowDecimals: false,
+          max: series.totalComponents,
+          /* The ceiling, named. A rising line with no target above it looks
+             like progress whatever its slope. */
+          plotLines: [
+            {
+              value: series.totalComponents,
+              color: ArvoVisualPalette.blue.soft,
+              dashStyle: 'Dash',
+              width: 1,
+              label: { text: `${series.totalComponents} to migrate`, style: { fontSize: '10px' } },
+            },
+          ],
+        },
+        legend: { enabled: false },
+        plotOptions: { area: { color: ArvoVisualPalette.green.dark, fillOpacity: 0.18, lineWidth: 2 } },
+        series: [{ name: 'Migrated', data: series.migration.values }],
+      },
       bySeverity: {
         chart: { type: 'column', height: 280 },
         xAxis: { categories: severityCounts.map((r) => r.name), title: { text: null } },
@@ -145,16 +281,17 @@ export default function AnalyticsView() {
         colors: severityShades.map((sh) => ArvoVisualPalette.red[sh]),
         series: [{ name: 'Violations', data: severityCounts }],
       },
+      byCategory: barOptions(byCategory.map((r) => r[0]), byCategory.map((r) => r[1]), ArvoVisualPalette.purple.base, 'Violations'),
       byArea: barOptions(byArea.map((r) => r[0]), byArea.map((r) => r[1]), ArvoVisualPalette.blue.base, 'Violations'),
-      byTeam: barOptions(byTeam.map((r) => r[0]), byTeam.map((r) => r[1]), ArvoVisualPalette.indigo.bright, 'Violations'),
+      byDeveloper: barOptions(byDeveloper.map((r) => r[0]), byDeveloper.map((r) => r[1]), ArvoVisualPalette.indigo.bright, 'Open findings'),
       byRule: {
-        chart: { type: 'bar', height: 280 },
+        chart: { type: 'bar', height: 300 },
         xAxis: { categories: byRule.map((r) => r[0]), title: { text: null } },
         yAxis: { title: { text: 'Violations' }, allowDecimals: false },
         legend: { enabled: false },
         plotOptions: { bar: { borderWidth: 0, color: ArvoVisualPalette.pink.base } },
-        /* The rule title is in the tooltip rather than on the axis: eight full
-           titles would need half the tile's width and the ids are what people
+        /* The rule title goes in the tooltip rather than on the axis: eight full
+           titles would need half the tile's width, and the ids are what people
            quote to each other. */
         tooltip: {
           formatter() {
@@ -165,73 +302,123 @@ export default function AnalyticsView() {
       },
       migration: {
         chart: { type: 'bar', height: 380 },
-        xAxis: { categories: areaNames, title: { text: null } },
+        xAxis: { categories: areas.map((a) => a.name), title: { text: null } },
         yAxis: { title: { text: 'UI areas / components' }, allowDecimals: false, reversedStacks: false },
-        plotOptions: { series: { stacking: 'normal', borderWidth: 0 } },
+        plotOptions: { series: { stacking: 'normal' } },
         series: migrationSeries,
       },
       roadmap: {
         chart: { type: 'column', height: 380 },
-        xAxis: { categories: statusLabels, title: { text: null }, labels: { rotation: -45 } },
+        xAxis: { categories: STATUSES.map((s) => s.label), title: { text: null }, labels: { rotation: -45 } },
         yAxis: { title: { text: 'Work items' }, allowDecimals: false },
-        plotOptions: { column: { stacking: 'normal', borderWidth: 0 } },
+        plotOptions: { column: { stacking: 'normal' } },
         series: typeSeries,
       },
     }
-  }, [violations, areas, workItems])
+  }, [series, kpis, violations, areas, workItems, g])
 
   /**
-   * Per-team summary.
+   * Per-developer summary.
    *
-   * Team level, not person level. "Resolution rate" is of the findings raised
-   * against the team, and "average time to resolve" counts only the settled ones
-   * -- an unresolved finding has no duration yet, and treating today as its end
-   * would make a team look faster the longer it waited.
+   * What keeps this from being a leaderboard is the trend column and the sort.
+   * Two people at 34% are not in the same situation if one is climbing and the
+   * other is flat, and the default order is adoption DESCENDING -- so the table
+   * opens on who is furthest along rather than on who is furthest behind.
    */
-  const teamRows = useMemo(
+  const devRows = useMemo(
     () =>
-      TEAMS.map((t) => {
-        const mine = violations.filter((v) => v.team === t.id)
-        const active = mine.filter((v) => !SETTLED_VIOLATION_STATUSES.has(v.status))
+      developers.map((d) => {
+        const merged = pullRequests.filter((p) => p.author === d.name && p.status === 'merged')
+        const withUi = merged.map((p) => ({ p, a: adoptionOf(p) })).filter((r) => r.a)
+        const arvo = withUi.reduce((n, r) => n + r.a.arvo, 0)
+        const legacy = withUi.reduce((n, r) => n + r.a.legacy, 0)
+
+        const s = bucketBy(withUi, 'month', (r) => r.p.mergedAt, (rows) => {
+          if (!rows.length) return null
+          const a = rows.reduce((n, r) => n + r.a.arvo, 0)
+          const l = rows.reduce((n, r) => n + r.a.legacy, 0)
+          return a + l ? Math.round((a / (a + l)) * 100) : null
+        })
+        /* A month with no merged PR carries the previous value forward. Drawing
+           it as 0% would show a holiday as a collapse. */
+        let carried = null
+        const filled = s.values.map((v) => (v === null ? carried : (carried = v)))
+
+        const mine = violations.filter((v) => v.author === d.name)
+        const open = mine.filter((v) => !SETTLED_VIOLATION_STATUSES.has(v.status))
         const settled = mine.filter((v) => v.resolvedAt)
         const days = settled.map((v) => (new Date(v.resolvedAt) - new Date(v.detectedAt)) / 86_400_000)
-        const teamAreas = areas.filter((a) => a.team === t.id)
-        const totalComponents = teamAreas.reduce((n, a) => n + a.total, 0)
-        const migrated = teamAreas.reduce((n, a) => n + a.migrated, 0)
+
+        const distinct = new Set()
+        merged.forEach((p) => Object.keys(p.arvoUsed).forEach((k) => distinct.add(k)))
+
         return {
-          id: t.id,
-          name: t.name,
-          contact: t.contact,
-          active: active.length,
-          repeated: active.filter((v) => v.isRepeated).length,
+          id: d.id,
+          name: d.name,
+          team: TEAM[d.team]?.name ?? d.team,
+          prs: merged.length,
+          arvo,
+          legacy,
+          pct: arvo + legacy ? Math.round((arvo / (arvo + legacy)) * 100) : null,
+          move: movement({ values: filled.filter((v) => v !== null) }, { higherIsBetter: true }),
+          distinct: distinct.size,
+          open: open.length,
+          repeated: open.filter((v) => v.isRepeated).length,
           rate: mine.length ? Math.round((settled.length / mine.length) * 100) : null,
           avgDays: days.length ? Math.round((days.reduce((a, b) => a + b, 0) / days.length) * 10) / 10 : null,
-          migration: totalComponents ? Math.round((migrated / totalComponents) * 100) : null,
-          /* Kept so the bar can be drawn from the same parts the Modernization
-             view uses, rather than from a percentage that has lost the detail. */
-          parts: teamAreas.length
-            ? {
-                total: totalComponents,
-                migrated,
-                partial: teamAreas.reduce((n, a) => n + a.partial, 0),
-                legacy: teamAreas.reduce((n, a) => n + a.legacy, 0),
-                blocked: teamAreas.reduce((n, a) => n + a.blocked, 0),
-              }
-            : null,
         }
       }),
-    [violations, areas]
+    [developers, pullRequests, violations]
   )
 
-  const teamColumns = useMemo(
+  const devColumns = useMemo(
     () => [
-      { key: 'name', label: 'Team' },
-      { key: 'active', label: 'Active violations' },
+      {
+        key: 'name',
+        label: 'Developer',
+        render: (r) => (
+          <button type="button" className="link-cell" onClick={() => setOpenDev(DEVELOPER[r.name])}>
+            {r.name}
+          </button>
+        ),
+        sortValue: (r) => r.name,
+      },
+      { key: 'team', label: 'Team' },
+      { key: 'prs', label: 'Merged PRs' },
+      {
+        key: 'pct',
+        label: 'Arvo adoption',
+        className: 'trk-col-bar',
+        render: (r) =>
+          r.pct === null ? (
+            ''
+          ) : (
+            <span className="trk-progress">
+              <AdoptionBar arvo={r.arvo} legacy={r.legacy} />
+              <span className="trk-progress__pct">{r.pct}%</span>
+            </span>
+          ),
+        sortValue: (r) => r.pct ?? -1,
+        searchValue: (r) => (r.pct === null ? '' : `${r.pct}%`),
+      },
+      {
+        key: 'move',
+        label: 'Trend',
+        render: (r) => (
+          <span className={`trk-move trk-move--${r.move.favourability ?? 'flat'}`}>
+            {r.move.change === 0 ? 'flat' : formatMovement(r.move, 'pp')}
+          </span>
+        ),
+        sortValue: (r) => r.move.change,
+        searchValue: (r) => (r.move.change === 0 ? 'flat' : formatMovement(r.move, 'pp')),
+      },
+      { key: 'distinct', label: 'Components used' },
+      { key: 'open', label: 'Open findings' },
       { key: 'repeated', label: 'Repeated' },
       {
         key: 'rate',
         label: 'Resolution rate',
-        render: (r) => (r === null ? '' : `${r}%`),
+        render: (r) => (r.rate === null ? '' : `${r.rate}%`),
         sortValue: (r) => r.rate ?? -1,
       },
       {
@@ -240,47 +427,9 @@ export default function AnalyticsView() {
         render: (r) => (r.avgDays === null ? '' : `${r.avgDays} days`),
         sortValue: (r) => r.avgDays ?? Infinity,
       },
-      {
-        key: 'migration',
-        label: 'Migration progress',
-        className: 'trk-col-bar',
-        render: (r) =>
-          r.parts ? (
-            <span className="trk-progress">
-              <MigrationBar area={r.parts} />
-              <span className="trk-progress__pct">{r.migration}%</span>
-            </span>
-          ) : (
-            ''
-          ),
-        sortValue: (r) => r.migration ?? -1,
-        searchValue: (r) => (r.migration === null ? '' : `${r.migration}%`),
-      },
-      { key: 'contact', label: 'Primary contact' },
     ],
     []
   )
-
-  /* Programme health, for the row above the charts. Detected against resolved
-     over the same fortnight: a backlog that is growing and one that is shrinking
-     look identical in a total. */
-  const health = useMemo(() => {
-    const since = Date.now() - 2 * WEEK
-    const detected = violations.filter((v) => new Date(v.detectedAt).getTime() >= since).length
-    const resolved = violations.filter((v) => v.resolvedAt && new Date(v.resolvedAt).getTime() >= since).length
-    const active = violations.filter((v) => !SETTLED_VIOLATION_STATUSES.has(v.status))
-    const totalComponents = areas.reduce((n, a) => n + a.total, 0)
-    const migrated = areas.reduce((n, a) => n + a.migrated, 0)
-    return {
-      detected,
-      resolved,
-      active: active.length,
-      critical: active.filter((v) => v.severity === 'critical').length,
-      openItems: workItems.filter((w) => !CLOSED_STATUSES.has(w.status)).length,
-      migrated,
-      totalComponents,
-    }
-  }, [violations, areas, workItems])
 
   if (status === 'loading') return <ViewLoading message="Summarising…" />
 
@@ -294,63 +443,129 @@ export default function AnalyticsView() {
     )
   }
 
+  const per = g.vs
+
   return (
     <>
       <div className="kpi-row">
         <KpiCell
-          label="Detected vs resolved"
-          value={`${health.detected} / ${health.resolved}`}
-          caption="Last 14 days. Resolved should lead."
-          /* Declared from the measure: more detected than resolved means the
-             backlog grew, which is unfavourable however encouraging the raw
-             detection count looks. */
-          favourability={health.resolved >= health.detected ? 'favorable' : 'unfavorable'}
+          label="Open findings"
+          value={kpis.activeNow}
+          delta={formatMovement(kpis.backlog)}
+          deltaLabel={per}
+          /* The balance, not the inflow. Down is favourable -- declared, because
+             no direction can be read off the sign alone. */
+          favourability={kpis.backlog.favourability}
+          spark={kpis.backlogSeries}
+          caption="The backlog at the end of each period"
         />
-        <KpiCell label="Active violations" value={health.active} caption="Not yet resolved, excepted or withdrawn" />
+        <KpiCell
+          label="Detected"
+          value={kpis.detected.current}
+          delta={formatMovement(kpis.detected)}
+          deltaLabel={per}
+          favourability={kpis.detected.favourability}
+          spark={series.detected.values}
+          caption="Raised this period"
+        />
+        <KpiCell
+          label="Resolved"
+          value={kpis.resolved.current}
+          delta={formatMovement(kpis.resolved)}
+          deltaLabel={per}
+          /* Up is favourable here, and only the caller knows that. */
+          favourability={kpis.resolved.favourability}
+          spark={series.resolved.values}
+          caption="Fixed, excepted or withdrawn"
+        />
+        <KpiCell
+          label="Arvo adoption"
+          value={`${kpis.adoption.current}%`}
+          delta={formatMovement(kpis.adoption, 'pp')}
+          deltaLabel={per}
+          favourability={kpis.adoption.favourability}
+          spark={series.adoption.values.map((v) => v ?? 0)}
+          caption="Share of UI uses in merged PRs"
+        />
+        <KpiCell
+          label="Components on Arvo"
+          value={kpis.migration.current}
+          delta={formatMovement(kpis.migration)}
+          deltaLabel="vs last month"
+          favourability={kpis.migration.favourability}
+          spark={series.migration.values}
+          caption={`of ${kpis.totalComponents}, all product areas`}
+        />
         <KpiCell
           label="Critical open"
-          value={health.critical}
+          value={kpis.critical}
           caption="Accessibility and contrast"
-          favourability={health.critical ? 'unfavorable' : 'favorable'}
-        />
-        <KpiCell label="Open roadmap items" value={health.openItems} caption="Neither released nor deferred" />
-        <KpiCell
-          label="Programme migration"
-          /* KpiCell composes "count/total" for a `ratio` but not for a `meter`,
-             so a meter without `value` renders with no headline at all. The
-             denominator is not repeated here -- the meter's end label already
-             names the target. */
-          value={health.migrated}
-          meter={{ value: health.migrated, target: health.totalComponents, targetLabel: `${health.totalComponents} components` }}
-          caption="Components fully on Arvo, all areas"
-          favourability="favorable"
+          favourability={kpis.critical ? 'unfavorable' : 'favorable'}
         />
       </div>
 
-      {/* Three per row on a wide screen, two at 1280 and one at 860 -- the kit's
-          own grid, so the charts here breathe the same way the rest of the
-          product does. */}
-      {/* --solo once a tile has taken the screen: an expanded chart should not
-          still be sitting in a third of the row. */}
+      {/* One switch, every time chart. They are the same questions at two zoom
+          levels; letting them drift would put a four-month story beside a
+          twelve-month one with nothing saying which was which. */}
+      <div className="trk-grain">
+        <span className="trk-grain__label">Period</span>
+        {GRAINS.map((row) => (
+          <ArvoChip
+            key={row.id}
+            variant="filter"
+            /* The letter carries it, and the word is there so the letter never
+               has to be guessed at. "M" alone would be a puzzle the first time
+               anybody met this row. */
+            label={`${row.short} · ${row.label}`}
+            isSelected={grain === row.id}
+            onSelectedChange={() => setGrain(row.id)}
+          />
+        ))}
+        <Hint text="Changes the grain of every time-series chart and of the movement figure on each KPI above. Movement compares this period SO FAR against the same slice of the one before it — 22 days against 22 days — so a month that is not over yet does not read as a collapse. Migration is a monthly snapshot by nature and stays monthly at any grain." />
+      </div>
+
       <div className={`metric-grid${expandedId ? ' metric-grid--solo' : ''}`}>
         <ExpandableTile
-          id="weekly"
-          title="Violations by week"
-          note="Detected"
+          id="backlog"
+          title="Open findings over time"
+          note={g.label}
           expandedId={expandedId}
           onToggle={setExpandedId}
+          actions={<Hint text="The running balance, not the inflow. Detected and resolved each tell half the story; only this line says whether the backlog is growing." />}
         >
-          <Chart options={charts.weekly} />
+          <Chart options={charts.backlog} />
         </ExpandableTile>
 
         <ExpandableTile
           id="new-resolved"
-          title="New versus resolved"
+          title="Detected versus resolved"
           expandedId={expandedId}
           onToggle={setExpandedId}
-          actions={<Hint text="Resolved counts the week a finding was settled, not the week it was raised. The two lines crossing the other way means the backlog is growing." />}
+          actions={<Hint text="Resolved counts the period a finding was settled, not the period it was raised. Detected running above resolved means the backlog is growing." />}
         >
           <Chart options={charts.newVsResolved} />
+        </ExpandableTile>
+
+        <ExpandableTile
+          id="adoption"
+          title="Arvo adoption over time"
+          note="Merged PRs"
+          expandedId={expandedId}
+          onToggle={setExpandedId}
+          actions={<Hint text="The share of UI component uses that were Arvo rather than legacy, weighted by uses. A period with nothing merged is bridged rather than drawn as a drop to zero." />}
+        >
+          <Chart options={charts.adoption} />
+        </ExpandableTile>
+
+        <ExpandableTile
+          id="migration-trend"
+          title="Migration over the last year"
+          note="Monthly"
+          expandedId={expandedId}
+          onToggle={setExpandedId}
+          actions={<Hint text="Components fully migrated, summed across all product areas. Monthly whichever grain is selected — no finer snapshot exists. The dashed line is the total still to migrate." />}
+        >
+          <Chart options={charts.migrationTrend} />
         </ExpandableTile>
 
         <ExpandableTile id="severity" title="Violations by severity" expandedId={expandedId} onToggle={setExpandedId}>
@@ -366,13 +581,13 @@ export default function AnalyticsView() {
         </ExpandableTile>
 
         <ExpandableTile
-          id="team"
-          title="Violations by team"
+          id="developer"
+          title="Open findings by developer"
           expandedId={expandedId}
           onToggle={setExpandedId}
-          actions={<Hint text="Raw counts, not normalised. A team with a 62-component area will trip more rules than one with 12, so read this next to Migration progress rather than on its own." />}
+          actions={<Hint text="OPEN findings, not total ever raised — total-ever only measures who has been on the team longest. Read it beside Arvo adoption in the table below: a high count with a rising adoption trend is somebody learning fast, not somebody struggling." />}
         >
-          <Chart options={charts.byTeam} />
+          <Chart options={charts.byDeveloper} />
         </ExpandableTile>
 
         <ExpandableTile
@@ -408,22 +623,24 @@ export default function AnalyticsView() {
       </div>
 
       <ExpandableTile
-        id="teams"
-        title="Team summary"
-        note="Teams, repositories and rules — never individuals"
+        id="developers"
+        title="Developer summary"
+        note="Adoption first, highest at the top"
         expandedId={expandedId}
         onToggle={setExpandedId}
         actions={
-          <Hint text="Average time to resolve counts settled findings only. Counting the open ones as if they ended today would make a team look faster the longer it left them." />
+          <Hint text="Read adoption and trend together — somebody at 34% and rising needs something different from somebody at 34% and flat, and the percentage alone cannot tell them apart. Average time to resolve counts settled findings only; counting the open ones as if they ended today would make a person look faster the longer they left them." />
         }
       >
         <DataTable
-          columns={teamColumns}
-          rows={teamRows}
+          columns={devColumns}
+          rows={[...devRows].sort((a, b) => (b.pct ?? -1) - (a.pct ?? -1))}
           rowKey={(r) => r.id}
-          emptyMessage="No teams have findings against them."
+          emptyMessage="No developers in the directory."
         />
       </ExpandableTile>
+
+      <DeveloperDetail developer={openDev} isOpen={!!openDev} onClose={() => setOpenDev(null)} />
     </>
   )
 }

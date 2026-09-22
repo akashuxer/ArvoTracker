@@ -122,14 +122,19 @@ Regenerating it needs the SCSS sources from the Arvo monorepo, not just the
 package — re-run that repo's asset sync and copy the result here. Never
 hand-edit it.
 
-## The four sections
+## The five sections
 
 | | |
 |---|---|
 | **Roadmap** | Every work item: new requests, bugs, enhancements, upcoming. Table and Kanban, item-detail drawer, create/edit form. |
 | **Modernization** | How far each product area has migrated, and what is holding the rest. |
+| **Adoption** | What people are actually building with — by pull request, by developer, by component. |
 | **Violations** | What the scanner found on each push, and who to talk to about it. |
-| **Analytics** | Nine charts plus a per-team summary. |
+| **Analytics** | Eleven charts, month-over-month KPIs, and a per-developer summary. |
+
+Adoption and Violations are deliberately the same data seen twice. One says what
+went right and one says what went wrong, and a design system team that only ever
+looks at the second becomes a team nobody wants to hear from.
 
 The five Roadmap tabs are **filtered views of one array**, never separate
 datasets. An item whose type changes does not have to be moved between
@@ -139,12 +144,24 @@ collections, and a tab count cannot disagree with the table beneath it.
 
 A violation here is a signal that a team needs support, not a citation.
 
-- **The author is recorded but never aggregated.** Someone has to be asked, so
-  the author is on the violation and in its detail drawer. Nothing in Analytics
-  counts, ranks or charts by person — the units are teams, repositories, product
-  areas and rules. This is a deliberate refusal: a leaderboard of who tripped the
-  most rules makes people avoid the scanner, and the scanner only works if people
-  want it to run.
+- **People are named, and the design works hard to keep that useful.** An
+  earlier version refused to aggregate by person at all, on the grounds that a
+  count of rules broken is a stick. That was overruled, for a fair reason:
+  "who would benefit from an hour of help" is a real question a team-level
+  average cannot answer. So the person-level views exist, and three things stop
+  them becoming a leaderboard:
+
+  - the developer chart counts **open** findings, not total-ever — total-ever
+    only measures who has been on the team longest;
+  - every table sorts by **adoption descending**, so it opens on who is furthest
+    along rather than who is furthest behind;
+  - every row carries a **trend** beside its number, because somebody at 34% and
+    rising needs something different from somebody at 34% and flat, and the
+    percentage alone shows them as the same person.
+
+  The developer drawer goes further and names which of someone's findings are
+  **not theirs to fix** — a rule with a roadmap item against it is the design
+  system's to answer. That is the single most useful thing that panel does.
 - **A repeated finding is a prompt, not a mark.** "Repeated" means the same rule
   tripped in the same file again within three weeks — usually because the
   guidance did not land, or because Arvo is missing a token, a prop or a pattern.
@@ -166,9 +183,35 @@ anchored rather than `new Date()`, for the same reason.
 ```
 src/data/enums.js    the vocabularies every section agrees on
 src/data/rules.js    the Arvo rule registry: why / alternative / fix / docs
-src/data/mock.js     teams, work items, product areas, pushes, violations
+src/data/catalog.js  the Arvo component catalogue, and the legacy it replaces
+src/data/mock.js     teams, developers, work items, areas, PRs, pushes, violations
 src/data/store.jsx   the provider — the only file a real backend changes
+src/lib/series.js    time bucketing and period-over-period comparison
 ```
+
+Just over two years of pull requests, pushes and findings, so the M / Q / Y
+switch has real history at every grain and adoption has a visible arc — it
+climbs from roughly 35% to 72% across the span, which is what makes a
+month-over-month view worth looking at.
+
+### Two traps in period-over-period, both avoided
+
+Worth knowing about, because both produce numbers that look authoritative and
+are wrong.
+
+**A partial period against a complete one.** On the 22nd of the month, comparing
+22 days against 30 reported every flow measure as down 40–50% — merged PRs, Arvo
+uses, findings detected, all of it. Nothing had fallen off a cliff; the month
+was not over. So `toDate` cuts the previous period to the same elapsed span, and
+the labels say **"vs same point last month"** rather than "vs last month",
+because those are different claims.
+
+**Flows and balances are not the same measure.** A flow accumulates within a
+period (PRs merged, findings detected) and uses `toDate`. A balance is already a
+point in time (how many findings are open right now) and is compared point to
+point against the same day one period back. Reading a balance off the bucket
+series instead compares "now" with "the end of last month", which is a real
+number but not the one the label claims.
 
 Views never import the fixtures directly. They go through `useTracker()`, which
 exposes `status` (`loading` / `ready` / `error`) alongside the data, so every
@@ -234,6 +277,18 @@ standing.
 - **Contrast.** The severity ramp stops at `red.base` rather than running on to
   `red.soft`, which is about 2.1:1 on the white tile — below the 3:1 a filled
   graphical object needs. That is ARVO-A11Y-002, one of this app's own rules.
+- **Square, including the charts.** `--arvo-radius-none` throughout. Highcharts
+  12+ defaults `borderRadius` to 3px on every column *and* bar, so the shared
+  chart theme has to state it — and it had only stated it for `column`, leaving
+  every horizontal bar rounded. `plotOptions.series.borderRadius = 0` is the
+  catch-all, because Highcharts treats `bar` as its own type rather than a
+  rotated column. **This fix belongs upstream in the canonical `@o9qa/kit`** —
+  see "The vendored shared layer".
+- **Stacked segments are separated, not butted together.** A 2px border in the
+  tile's own surface colour, on the charts and on the progress bars alike, so
+  two adjacent shades of one family read as two bands rather than one block.
+  The progress bars drop zero-value bands entirely, or a band that is not there
+  would still draw its separator.
 - **No component overrides.** The filter row narrows its selects by setting
   `--arvo-form-input-width`, the documented variable, not by styling
   `.arvo-sel__input`. That would be ARVO-COMP-002.
@@ -242,7 +297,6 @@ standing.
   box, an unknown token silently falls back — so neither is guessed.
 - **Keyboard.** Kanban cards and table links are real `<button>`s, not divs with
   click handlers.
-- **Square.** `--arvo-radius-none` throughout.
 - **Highcharts only.** Charts go through `<Chart>` from the kit. Never Chart.js,
   Plotly, D3, ApexCharts or ECharts.
 

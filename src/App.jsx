@@ -7,6 +7,7 @@ import {
 import { TrackerProvider, useTracker } from './data/store'
 import RoadmapView from './views/RoadmapView'
 import ModernizationView from './views/ModernizationView'
+import AdoptionView from './views/AdoptionView'
 import ViolationsView from './views/ViolationsView'
 import AnalyticsView from './views/AnalyticsView'
 import WorkItemPanel from './components/WorkItemPanel'
@@ -20,11 +21,16 @@ import ImportScanPanel from './components/ImportScanPanel'
  * what those packages are for -- and shares nothing else: no routes, no backend,
  * no build output.
  *
- * Four sections, and they are not four apps. Roadmap, Modernization and
- * Violations are three views of the same programme of work, and each one links
+ * Five sections, and they are not five apps. Roadmap, Modernization, Adoption
+ * and Violations are four views of the same programme of work, and each links
  * into the others: a blocked migration names the roadmap item blocking it, a
  * violation names the rule and the roadmap item that would remove the whole
- * class of it. Analytics summarises all three.
+ * class of it, a developer's panel says which of their findings are the design
+ * system's to answer rather than theirs. Analytics summarises all four.
+ *
+ * Adoption and Violations are deliberately the same data seen twice. One says
+ * what went right and one says what went wrong, and a design system team that
+ * only ever looks at the second becomes a team nobody wants to hear from.
  */
 const BASE = '/arvotracker'
 
@@ -56,6 +62,19 @@ const SECTIONS = [
     lede: 'How far each product area has moved onto Arvo, and what is holding the rest.',
   },
   {
+    id: 'adoption',
+    label: 'Adoption',
+    icon: 'trend-up',
+    title: 'Adoption',
+    lede: 'What people are actually building with — by pull request, by developer, by component.',
+    /* Three questions about ONE set of pull requests, not three datasets. */
+    tabs: [
+      { id: 'prs', label: 'Pull requests' },
+      { id: 'developers', label: 'Developers' },
+      { id: 'components', label: 'Components' },
+    ],
+  },
+  {
     id: 'violations',
     label: 'Violations',
     icon: 'exclamation-triangle',
@@ -67,7 +86,7 @@ const SECTIONS = [
     label: 'Analytics',
     icon: 'bar-chart',
     title: 'Analytics',
-    lede: 'Where the systemic problems are — by team, repository and rule, not by person.',
+    lede: 'How everything is moving, month over month.',
   },
 ]
 
@@ -82,6 +101,7 @@ const sectionFromPath = () => {
 const VIEWS = {
   roadmap: RoadmapView,
   modernization: ModernizationView,
+  adoption: AdoptionView,
   violations: ViolationsView,
   analytics: AnalyticsView,
 }

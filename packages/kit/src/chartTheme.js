@@ -75,12 +75,28 @@ export function applyChartTheme() {
     },
 
     plotOptions: {
+      /* Arvo is square. Highcharts 12+ defaults `borderRadius` to 3px on every
+         column AND bar, so this has to be stated or the shape quietly stops
+         matching the design system -- and it is not a value any consumer would
+         think to look for.
+         `series` is the catch-all: setting it only on `column` left horizontal
+         bars rounded, because Highcharts treats `bar` as its own type rather
+         than a rotated column. */
+      series: { borderRadius: 0 },
       column: {
         borderRadius: 0,
         groupPadding: 0.1,
-        /* 1px separator between stacked segments, drawn in the tile's own
-           surface colour so it reads as a gap rather than an outline. */
-        borderWidth: 1,
+        /* The separator between stacked segments, drawn in the tile's own
+           surface colour so it reads as a gap rather than an outline. 2px
+           rather than 1: at 1px two adjacent shades of the same family still
+           bled into each other and the stack read as one block. */
+        borderWidth: 2,
+        borderColor: surface,
+      },
+      bar: {
+        borderRadius: 0,
+        groupPadding: 0.1,
+        borderWidth: 2,
         borderColor: surface,
       },
     },

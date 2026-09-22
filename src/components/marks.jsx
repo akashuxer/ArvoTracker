@@ -82,19 +82,78 @@ export function TypeMark({ type }) {
  * the semantic palette. Every segment is labelled in the accessible name, so
  * the four bands never have to be told apart by colour.
  */
+/**
+ * The segments of a stacked bar, with a hairline gap between them.
+ *
+ * Zero-value bands are DROPPED rather than rendered at `width: 0`. The gap is a
+ * left border on every segment after the first, so a zero-width band would draw
+ * its separator anyway -- two touching lines in the middle of a bar that is
+ * otherwise one colour, which reads as a band of something that is not there.
+ *
+ * The border is inside the width (`box-sizing: border-box` is global), so the
+ * segments still sum to exactly 100%.
+ */
+function Segments({ bands, total }) {
+  return bands
+    .filter((b) => b.value > 0)
+    .map((b) => (
+      <span
+        key={b.id}
+        className={`trk-mig__seg trk-mig__seg--${b.id}`}
+        style={{ width: `${total ? (b.value / total) * 100 : 0}%` }}
+      />
+    ))
+}
+
 export function MigrationBar({ area }) {
   const { total, migrated, partial, legacy, blocked } = area
-  const pct = (n) => (total ? (n / total) * 100 : 0)
   return (
     <div
       className="trk-mig"
       role="img"
       aria-label={`${migrated} migrated, ${partial} partially migrated, ${legacy} legacy, ${blocked} blocked, of ${total}`}
     >
-      <span className="trk-mig__seg trk-mig__seg--migrated" style={{ width: `${pct(migrated)}%` }} />
-      <span className="trk-mig__seg trk-mig__seg--partial" style={{ width: `${pct(partial)}%` }} />
-      <span className="trk-mig__seg trk-mig__seg--legacy" style={{ width: `${pct(legacy)}%` }} />
-      <span className="trk-mig__seg trk-mig__seg--blocked" style={{ width: `${pct(blocked)}%` }} />
+      <Segments
+        total={total}
+        bands={[
+          { id: 'migrated', value: migrated },
+          { id: 'partial', value: partial },
+          { id: 'legacy', value: legacy },
+          { id: 'blocked', value: blocked },
+        ]}
+      />
+    </div>
+  )
+}
+
+/**
+ * Arvo against legacy, in one bar.
+ *
+ * Two parts of a whole, so a data mark: ArvoVisualPalette, not the semantic
+ * palette. Deliberately NOT green-versus-red. Legacy code is not an error -- it
+ * is work that has not happened yet, and most of it predates the component that
+ * would replace it. Tinting it as a failure would make this read as a list of
+ * mistakes, which is wrong and is also the fastest way to make people stop
+ * looking at the screen.
+ *
+ * The counts are in the accessible name, so the split never has to be read off
+ * the colours.
+ */
+export function AdoptionBar({ arvo, legacy }) {
+  const total = arvo + legacy
+  return (
+    <div
+      className="trk-mig"
+      role="img"
+      aria-label={`${arvo} Arvo component uses, ${legacy} legacy, of ${total}`}
+    >
+      <Segments
+        total={total}
+        bands={[
+          { id: 'migrated', value: arvo },
+          { id: 'legacy', value: legacy },
+        ]}
+      />
     </div>
   )
 }

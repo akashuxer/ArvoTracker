@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { AREAS, PUSHES, TEAM, VIOLATIONS, WORK_ITEMS } from './mock'
+import {
+  AREAS, AREA_HISTORY, DEVELOPERS, PULL_REQUESTS, PUSHES, TEAM, VIOLATIONS, WORK_ITEMS,
+} from './mock'
 import { RULE } from './rules'
 import { CLOSED_STATUSES, SETTLED_VIOLATION_STATUSES } from './enums'
 
@@ -11,10 +13,13 @@ import { CLOSED_STATUSES, SETTLED_VIOLATION_STATUSES } from './enums'
  * thing that changes when the real sources arrive -- the views already treat the
  * data as something that can be absent, slow or wrong.
  *
- *   workItems   -> design-system backlog API
- *   areas       -> component-import analysis
- *   pushes      -> git push / PR webhook
- *   violations  -> Arvo lint + axe + token validation, per push
+ *   workItems     -> design-system backlog API
+ *   areas         -> component-import analysis
+ *   areaHistory   -> the same, snapshotted monthly
+ *   pullRequests  -> git PR API, plus an import-graph pass for component usage
+ *   pushes        -> git push / PR webhook
+ *   violations    -> Arvo lint + axe + token validation, per push
+ *   developers    -> the org directory
  */
 const TrackerContext = createContext(null)
 
@@ -30,6 +35,7 @@ export function TrackerProvider({ children }) {
   const [areas, setAreas] = useState([])
   const [violations, setViolations] = useState([])
   const [pushes, setPushes] = useState([])
+  const [pullRequests, setPullRequests] = useState([])
 
   const load = useCallback(() => {
     setState({ status: 'loading', error: null })
@@ -39,6 +45,7 @@ export function TrackerProvider({ children }) {
         setAreas(AREAS)
         setViolations(VIOLATIONS)
         setPushes(PUSHES)
+        setPullRequests(PULL_REQUESTS)
         setState({ status: 'ready', error: null })
       } catch (e) {
         setState({ status: 'error', error: e.message })
@@ -230,6 +237,11 @@ export function TrackerProvider({ children }) {
       areas,
       violations,
       pushes,
+      pullRequests,
+      /* Static reference data: a directory and a set of historical snapshots.
+         Neither is edited here, so neither needs to be state. */
+      developers: DEVELOPERS,
+      areaHistory: AREA_HISTORY,
       ...derived,
       reload: load,
       saveWorkItem,
@@ -239,7 +251,7 @@ export function TrackerProvider({ children }) {
       assignViolation,
       importScan,
     }),
-    [state, workItems, areas, violations, pushes, derived, load, saveWorkItem, deleteWorkItem, nextWorkItemId, setViolationStatus, assignViolation, importScan]
+    [state, workItems, areas, violations, pushes, pullRequests, derived, load, saveWorkItem, deleteWorkItem, nextWorkItemId, setViolationStatus, assignViolation, importScan]
   )
 
   return <TrackerContext.Provider value={value}>{children}</TrackerContext.Provider>

@@ -18,6 +18,7 @@
  * whether the detail views actually say anything.
  */
 import { RULES } from './rules'
+import { AREA_COMPONENTS } from './catalog'
 
 /* Anchored, not `new Date()`: a fixture whose "last week" moves every morning
    makes two people looking at the same screen disagree. */
@@ -787,13 +788,42 @@ const REPO_AREA = {
   'platform-reporting': ['reporting'],
 }
 
-const AUTHORS = {
-  'platform-dashboard': ['Priya Raghavan', 'Devon Clarke', 'Aarti Menon'],
-  'platform-planning': ['Marcus Feld', 'Jonas Weber', 'Lin Chen'],
-  'platform-grid': ['Sofia Almeida', 'Rui Costa', 'Nadia Farouk'],
-  'platform-admin': ['Tomas Novak', 'Eva Horak'],
-  'platform-reporting': ['Hannah Boateng', 'Kwame Osei'],
-}
+/**
+ * The developers.
+ *
+ * `fluency` is how far along this person is with Arvo, 0 to 1. It biases how
+ * much of their UI work reaches for an Arvo component rather than a legacy one,
+ * and how often they trip a rule.
+ *
+ * It exists so the developer view has something real to show. The point of
+ * that view is to find who would benefit from a conversation -- someone at 0.3
+ * who is climbing needs different help from someone at 0.3 who is flat, and a
+ * single ranked list would show them as the same person.
+ */
+export const DEVELOPERS = [
+  { id: 'priya', name: 'Priya Raghavan', team: 'dashboard', repo: 'platform-dashboard', fluency: 0.86 },
+  { id: 'devon', name: 'Devon Clarke', team: 'dashboard', repo: 'platform-dashboard', fluency: 0.52 },
+  { id: 'aarti', name: 'Aarti Menon', team: 'dashboard', repo: 'platform-dashboard', fluency: 0.34 },
+  { id: 'marcus', name: 'Marcus Feld', team: 'planning', repo: 'platform-planning', fluency: 0.78 },
+  { id: 'jonas', name: 'Jonas Weber', team: 'planning', repo: 'platform-planning', fluency: 0.61 },
+  { id: 'lin', name: 'Lin Chen', team: 'planning', repo: 'platform-planning', fluency: 0.44 },
+  { id: 'sofia', name: 'Sofia Almeida', team: 'grid', repo: 'platform-grid', fluency: 0.71 },
+  { id: 'rui', name: 'Rui Costa', team: 'grid', repo: 'platform-grid', fluency: 0.38 },
+  { id: 'nadia', name: 'Nadia Farouk', team: 'grid', repo: 'platform-grid', fluency: 0.29 },
+  { id: 'tomas', name: 'Tomas Novak', team: 'admin', repo: 'platform-admin', fluency: 0.33 },
+  { id: 'eva', name: 'Eva Horak', team: 'admin', repo: 'platform-admin', fluency: 0.22 },
+  { id: 'hannah', name: 'Hannah Boateng', team: 'insights', repo: 'platform-reporting', fluency: 0.81 },
+  { id: 'kwame', name: 'Kwame Osei', team: 'insights', repo: 'platform-reporting', fluency: 0.57 },
+]
+
+export const DEVELOPER = Object.fromEntries(DEVELOPERS.map((d) => [d.name, d]))
+
+const AUTHORS = Object.fromEntries(
+  [...new Set(DEVELOPERS.map((d) => d.repo))].map((repo) => [
+    repo,
+    DEVELOPERS.filter((d) => d.repo === repo).map((d) => d.name),
+  ])
+)
 
 const TEAM_OF_REPO = Object.fromEntries(
   TEAMS.flatMap((t) => t.repos.map((r) => [r, t.id]))
@@ -842,33 +872,155 @@ const AREA_RULES = {
 
 const REPOS = Object.keys(REPO_AREA)
 
-function buildPushes() {
+/**
+ * Thirteen months of pull requests, and the pushes inside them.
+ *
+ * Thirteen rather than twelve so that every month on a twelve-month chart has a
+ * real month before it to be compared against. A year of data makes the first
+ * bar's movement unknowable.
+ *
+ * A PR is the unit of adoption, not a push: adoption is a property of a change
+ * that got reviewed and merged, and a branch that was force-pushed four times
+ * is one decision, not four. Violations still attach to pushes, because that is
+ * what a scanner actually sees.
+ *
+ * `ramp` is the story in the data: Arvo adoption climbs over the year. Without
+ * it every month looks the same and a month-over-month view says nothing.
+ */
+/* Just over two years. Long enough that the yearly grain has three real buckets
+   to compare rather than two, and that a quarter-over-quarter figure is not
+   reading half its own history. */
+const HISTORY_DAYS = 800
+
+function buildPullRequests() {
   const rnd = seeded(20260922)
+  const prs = []
   const pushes = []
-  /* Ten weeks, so "violations by week" has a trend rather than two bars. */
-  for (let d = 68; d >= 0; d -= 1) {
-    REPOS.forEach((repo, r) => {
-      /* Not every repo pushes every day. Reporting and Admin are quieter,
+  let prNumber = 800
+
+  for (let d = HISTORY_DAYS; d >= 0; d -= 1) {
+    /* 0 at the start of the history, 1 today. */
+    const ramp = 1 - d / HISTORY_DAYS
+
+    REPOS.forEach((repo) => {
+      /* Not every repo opens a PR every day. Reporting and Admin are quieter,
          which is the honest reason their counts are lower. */
-      const chance = repo === 'platform-admin' ? 0.18 : repo === 'platform-reporting' ? 0.24 : 0.4
+      const chance = repo === 'platform-admin' ? 0.16 : repo === 'platform-reporting' ? 0.2 : 0.34
       if (rnd() > chance) return
-      const i = Math.floor(rnd() * 7)
-      pushes.push({
-        id: `${repo.slice(9, 13)}-${d}-${r}`,
+
+      const areas = REPO_AREA[repo]
+      const area = areas[Math.floor(rnd() * areas.length)]
+      const authors = AUTHORS[repo]
+      const author = authors[Math.floor(rnd() * authors.length)]
+      const dev = DEVELOPER[author]
+      const i = Math.floor(rnd() * BRANCHES.length)
+      const pool = AREA_COMPONENTS[area] ?? { arvo: [], legacy: [] }
+
+      /* How likely this PR is to reach for Arvo rather than a legacy control.
+         Three things move it, and they are all real: how far along the person
+         is, how far along the calendar is, and how much legacy the area still
+         carries -- someone working in Pivot/Grid is surrounded by it. */
+      const areaDrag = pool.legacy.length / (pool.arvo.length + pool.legacy.length || 1)
+      const lean = Math.min(0.97, Math.max(0.05, dev.fluency * 0.55 + ramp * 0.5 - areaDrag * 0.25))
+
+      /* Which components this PR actually touched. Counted, because "used
+         ArvoButton once" and "used it eleven times" are different facts about
+         how load-bearing a component is. */
+      const arvoUsed = {}
+      const legacyUsed = {}
+      const touches = 1 + Math.floor(rnd() * 5)
+      for (let t = 0; t < touches; t += 1) {
+        if (rnd() < lean && pool.arvo.length) {
+          const name = pool.arvo[Math.floor(rnd() * pool.arvo.length)]
+          arvoUsed[name] = (arvoUsed[name] ?? 0) + 1 + Math.floor(rnd() * 3)
+        } else if (pool.legacy.length) {
+          const name = pool.legacy[Math.floor(rnd() * pool.legacy.length)]
+          legacyUsed[name] = (legacyUsed[name] ?? 0) + 1 + Math.floor(rnd() * 2)
+        }
+      }
+
+      /* Reaching into an internal building block. Rare, and worth surfacing:
+         it is not adoption, it is coupling to something that changes without
+         notice. Weighted toward people newer to the system, which is exactly
+         who would not know the difference. */
+      const usedInternal = rnd() < 0.05 * (1 - dev.fluency) ? (rnd() < 0.5 ? 'ArvoCalendar' : 'ArvoTimeDropdown') : null
+
+      const openedDaysAgo = d
+      /* Most merge within a few days; some sit. Nothing merges in the future. */
+      const mergeLag = 1 + Math.floor(rnd() * 6)
+      const isMerged = d > mergeLag
+      const id = `PR-${(prNumber += 1)}`
+
+      const pr = {
+        id,
+        number: prNumber,
+        title: MESSAGES[i],
         repository: repo,
         team: TEAM_OF_REPO[repo],
+        productArea: area,
         branch: BRANCHES[i],
-        commitId: Math.floor(rnd() * 0xfffffff).toString(16).padStart(7, '0'),
-        commitMessage: MESSAGES[i],
-        author: AUTHORS[repo][Math.floor(rnd() * AUTHORS[repo].length)],
-        timestamp: daysAgo(d),
-      })
+        author,
+        developerId: dev.id,
+        openedAt: daysAgo(openedDaysAgo),
+        mergedAt: isMerged ? daysAgo(openedDaysAgo - mergeLag) : '',
+        status: isMerged ? 'merged' : rnd() < 0.3 ? 'draft' : 'open',
+        filesChanged: 1 + Math.floor(rnd() * 14),
+        arvoUsed,
+        legacyUsed,
+        usedInternal,
+      }
+      prs.push(pr)
+
+      /* One to three pushes per PR. The scanner runs on each. */
+      const pushCount = 1 + Math.floor(rnd() * 3)
+      for (let p = 0; p < pushCount; p += 1) {
+        const at = Math.max(0, openedDaysAgo - p)
+        pushes.push({
+          id: `${id}-p${p}`,
+          prId: id,
+          repository: repo,
+          team: TEAM_OF_REPO[repo],
+          productArea: area,
+          branch: pr.branch,
+          commitId: Math.floor(rnd() * 0xfffffff).toString(16).padStart(7, '0'),
+          commitMessage: pr.title,
+          author,
+          timestamp: daysAgo(at),
+        })
+      }
     })
   }
-  return pushes
+  /* Oldest first, so "the latest push" is simply the last one. */
+  pushes.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+  return { prs, pushes }
 }
 
-export const PUSHES = buildPushes()
+const built = buildPullRequests()
+
+export const PULL_REQUESTS = built.prs
+export const PUSHES = built.pushes
+
+/* ---- Adoption helpers ---------------------------------------------------- */
+
+export const countOf = (used) => Object.values(used).reduce((n, v) => n + v, 0)
+
+/**
+ * What share of this PR's UI work used Arvo.
+ *
+ * Weighted by USES, not by distinct component names: a PR that reached for
+ * ArvoButton eleven times and one legacy grid once is mostly Arvo, and counting
+ * names would score it 50/50 and call that honest.
+ *
+ * Returns null when a PR touched no UI components at all -- a config or test
+ * change has no adoption ratio, and scoring it 0% would drag every average
+ * down with work that was never in scope.
+ */
+export function adoptionOf(pr) {
+  const arvo = countOf(pr.arvoUsed)
+  const legacy = countOf(pr.legacyUsed)
+  const total = arvo + legacy
+  return total === 0 ? null : { arvo, legacy, total, pct: Math.round((arvo / total) * 100) }
+}
 
 function buildViolations() {
   const rnd = seeded(7761)
@@ -886,10 +1038,16 @@ function buildViolations() {
   let n = 1000
 
   PUSHES.forEach((push) => {
-    const areas = REPO_AREA[push.repository]
-    const count = Math.floor(rnd() * 4)
+    /* The push's own area, not a fresh random one. A violation has to land in
+       the area the change was actually in, or the Modernization view and the
+       adoption figures describe two different products. */
+    const area = push.productArea
+    const dev = DEVELOPER[push.author]
+    /* Someone newer to the system trips more rules. That is the finding the
+       developer view exists to surface -- and the reason it is framed as who
+       to help rather than who to name. */
+    const count = Math.floor(rnd() * (1.6 + (1 - (dev?.fluency ?? 0.5)) * 3))
     for (let k = 0; k < count; k += 1) {
-      const area = areas[Math.floor(rnd() * areas.length)]
       const ruleIds = AREA_RULES[area]
       const ruleId = ruleIds[Math.floor(rnd() * ruleIds.length)]
       const rule = RULES.find((r) => r.id === ruleId)
@@ -922,9 +1080,14 @@ function buildViolations() {
          between detection and today rather than at a fixed offset, so the
          distribution has a spread to average. */
       const isSettled = status === 'resolved' || status === 'accepted-exception' || status === 'false-positive'
-      const resolvedAt = isSettled
-        ? daysAgo(Math.max(0, Math.round(ageDays - 1 - rnd() * Math.max(1, ageDays - 1))))
-        : ''
+      /* Settled a plausible LAG after detection -- one to forty-five days --
+         rather than at a uniformly random point between detection and today.
+         The uniform version put a two-year-old finding's resolution date as
+         likely to be last week as the week it was raised, which piled every
+         historical resolution up against the present and made the open-findings
+         balance read as a 64% collapse over one month. */
+      const lag = 1 + Math.round(rnd() * Math.min(44, Math.max(1, ageDays - 1)))
+      const resolvedAt = isSettled ? daysAgo(Math.max(0, ageDays - lag)) : ''
 
       rows.push({
         id: `V-${n += 1}`,
@@ -936,6 +1099,7 @@ function buildViolations() {
         productArea: area,
         branch: push.branch,
         pushId: push.id,
+        prId: push.prId,
         commitId: push.commitId,
         commitMessage: push.commitMessage,
         author: push.author,
@@ -959,3 +1123,41 @@ function buildViolations() {
 }
 
 export const VIOLATIONS = buildViolations()
+
+/* ---- Migration history --------------------------------------------------- */
+
+/**
+ * Thirteen monthly snapshots of `migrated` per area, ending at today's figure.
+ *
+ * The AREAS rows are a snapshot -- they say where each area IS. They cannot say
+ * whether it is moving, which is the question anyone actually asks of a
+ * migration board. This is the history behind that snapshot.
+ *
+ * It is generated BACKWARDS from the current number so the last point always
+ * equals what the table shows. Generating forwards and hoping it landed on the
+ * right value is how a chart ends up quietly contradicting the row above it.
+ *
+ * Monotonic, because a component does not un-migrate. An area that stalled
+ * simply repeats its number, which is exactly how a stall should look.
+ */
+function buildAreaHistory() {
+  const rnd = seeded(4242)
+  const out = {}
+  AREAS.forEach((area) => {
+    const months = new Array(13)
+    let value = area.migrated
+    months[12] = value
+    for (let m = 11; m >= 0; m -= 1) {
+      /* An area that has been quiet for a month moved less. */
+      const quiet = new Date(area.lastActivity) < new Date(TODAY.getTime() - 21 * day)
+      const step = Math.round(rnd() * (area.total / 13) * (quiet ? 0.6 : 1.5))
+      value = Math.max(0, value - step)
+      months[m] = value
+    }
+    out[area.id] = months
+  })
+  return out
+}
+
+/** { areaId: number[13] } -- oldest month first, last entry is today. */
+export const AREA_HISTORY = buildAreaHistory()

@@ -204,6 +204,17 @@
 }
 .trk-mig__seg { display: block; height: 100%; }
 
+/* A hairline gap between bands, drawn in the surface colour so it reads as a
+   gap rather than an outline -- the same treatment the stacked charts use, for
+   the same reason: two adjacent shades otherwise bleed into one block.
+   Inside the width, because `box-sizing: border-box` is global, so the segments
+   still sum to exactly 100%. Only segments with a value are rendered, or a
+   zero-width band would draw its separator anyway and put a stray line in the
+   middle of an otherwise solid bar. */
+.trk-mig__seg + .trk-mig__seg {
+  border-left: var(--arvo-border-2) solid var(--arvo-color-s-layer-01, #fff);
+}
+
 /* Four measured parts of a whole -- a data visual, so ArvoVisualPalette. Four
    distinguishable FAMILIES, because the bands are categories and not a scale.
    Every band is also named in the bar's accessible label and in the legend
@@ -447,6 +458,57 @@
   line-height: 1.55;
   color: var(--arvo-color-t-tertiary, #4c4c4c);
 }
+
+/* ---- Grain switch -------------------------------------------------------- */
+
+.trk-grain {
+  display: flex;
+  align-items: center;
+  gap: var(--arvo-space-8);
+  flex-wrap: wrap;
+}
+.trk-grain__label {
+  font-size: var(--arvo-font-size-11);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--arvo-color-t-tertiary, #4c4c4c);
+}
+
+/* ---- Adoption ----------------------------------------------------------- */
+
+.trk-muted { color: var(--arvo-color-t-tertiary, #4c4c4c); }
+
+/* Period-over-period movement.
+   No arrow glyph: the sign is already in the text ("+12%", "−4pp") and an icon
+   that only repeats it costs a column's width for nothing. Favourability is
+   DECLARED by the caller -- legacy uses falling is favourable -- so no direction
+   can be read off the sign alone. */
+.trk-move {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--arvo-medium);
+  white-space: nowrap;
+}
+.trk-move--favorable { color: var(--viz-favorable); }
+.trk-move--unfavorable { color: var(--viz-unfavorable); }
+.trk-move--flat { color: var(--arvo-color-t-tertiary, #4c4c4c); font-weight: var(--arvo-regular); }
+
+.trk-comp { display: flex; flex-direction: column; gap: var(--arvo-space-2); }
+.trk-comp__note {
+  font-family: var(--o9-font-family, o9Sans, sans-serif);
+  font-size: var(--arvo-font-size-10);
+  color: var(--arvo-color-t-warning, #926200);
+}
+
+/* Pills inside a table cell rather than a drawer: tighter, and they must not
+   push the row taller than its neighbours. */
+.trk-pills--inline { gap: var(--arvo-space-2); align-items: center; }
+.trk-pills--inline .trk-pill { font-size: var(--arvo-font-size-10); padding: 0 var(--arvo-space-4); }
+
+/* A catalogued component nobody has used. Quietened, not alarmed: it is a
+   question rather than a defect, and tinting it as an error would be the wrong
+   reading of the most interesting rows on that table. */
+.trk-row--quiet td { color: var(--arvo-color-t-tertiary, #4c4c4c); }
+.trk-row--quiet td:first-child { font-style: italic; }
 
 /* ---- Analytics grid ----------------------------------------------------- */
 
