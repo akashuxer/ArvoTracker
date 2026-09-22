@@ -142,15 +142,6 @@
   border: var(--arvo-border-1) solid currentColor;
 }
 
-.trk-severity { display: inline-flex; align-items: center; gap: var(--arvo-space-6); }
-.trk-severity__ico { font-size: var(--arvo-icon-16); }
-/* Severity is ORDERED, so the glyphs take ordered shades rather than four
-   unrelated hues -- the ramp carries the same order the icons imply. */
-.trk-severity__ico--critical { color: var(--arvo-viz-red-darkest); }
-.trk-severity__ico--high { color: var(--arvo-viz-red-dark); }
-.trk-severity__ico--medium { color: var(--arvo-viz-orange-dark); }
-.trk-severity__ico--low { color: var(--arvo-viz-blue-base); }
-
 .trk-type { display: inline-flex; align-items: center; gap: var(--arvo-space-6); white-space: nowrap; }
 .trk-type__ico { font-size: var(--arvo-icon-16); color: var(--arvo-color-i-secondary, #303030); }
 
@@ -162,6 +153,42 @@
 .trk-date--late { color: var(--arvo-color-t-negative, #bc1227); font-weight: var(--arvo-medium); }
 .trk-date--soon { color: var(--arvo-color-t-warning, #926200); }
 .trk-date__note { font-size: var(--arvo-font-size-10); text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* ---- Column hierarchy ----------------------------------------------------
+ *
+ * A fifteen-column table where every column has the same weight is a wall. The
+ * reader has to find the identifier, work out which numbers belong together,
+ * and ignore the provenance -- on every row, every time.
+ *
+ * Three tiers and one separator do most of the work:
+ *
+ *   --key    what the row IS. One per table. Carries the emphasis weight.
+ *   --meta   provenance: branch, commit, repository, dates. Present, quiet.
+ *   --sep    the first column of a group, with a rule before it.
+ *
+ * `--sep` is what makes the groups legible. The columns were already ordered by
+ * meaning; nothing said so.
+ */
+
+.data-table td.trk-col--key,
+.data-table th.trk-col--key {
+  font-weight: var(--arvo-medium);
+  color: var(--arvo-color-t-primary, #010101);
+}
+
+.data-table td.trk-col--meta {
+  color: var(--arvo-color-t-tertiary, #4c4c4c);
+  font-size: var(--arvo-font-size-11);
+}
+
+/* The rule sits in the padding, so it reads as a seam between groups rather
+   than as a border on one cell. Header and body share it, or the seam would
+   stop at the header row and look like a mistake. */
+.data-table td.trk-col--sep,
+.data-table th.trk-col--sep {
+  border-left: var(--arvo-border-1) solid var(--arvo-color-b-divider, #e5e5e5);
+  padding-left: var(--arvo-space-16);
+}
 
 /* ---- Columns ------------------------------------------------------------ */
 
@@ -353,6 +380,14 @@
 .trk-prose--quiet { color: var(--arvo-color-t-tertiary, #4c4c4c); }
 
 .trk-dl { display: grid; gap: var(--arvo-space-8) var(--arvo-space-16); margin: 0; }
+
+/* A hairline under each pair. Ten label/value pairs in a two-column grid read
+   as twenty floating strings without one -- the eye has nothing telling it
+   which value belongs to which label once the columns are uneven in length. */
+.trk-dl--2 .trk-dl__row {
+  padding-bottom: var(--arvo-space-6);
+  border-bottom: var(--arvo-border-1) solid var(--arvo-color-b-divider, #e5e5e5);
+}
 .trk-dl--1 { grid-template-columns: 1fr; }
 .trk-dl--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .trk-dl__row--wide { grid-column: 1 / -1; }
@@ -521,3 +556,56 @@
 }
 /* An expanded tile owns the whole content area, so the span would fight it. */
 .metric-grid__wide.report-tile--full { grid-column: 1 / -1; }
+
+/* An expanded tile inside the grid has to be given height by the GRID.
+   The kit sizes an expanded tile with `flex: 1`, which is right when the tile
+   is a direct child of the flex column -- and does nothing at all here, because
+   its parent is a grid. So the tile grew only as tall as the chart inside it
+   and the expand button appeared to do nothing but hide the other tiles.
+   `minmax(0, 1fr)` on the row, and the grid itself claiming the leftover
+   height, is what actually hands the space down. */
+.metric-grid--solo {
+  grid-template-rows: minmax(0, 1fr);
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* ---- Board: drag and drop ------------------------------------------------ */
+
+.trk-board-hint {
+  margin: 0 0 var(--arvo-space-12);
+  font-size: var(--arvo-font-size-11);
+  color: var(--arvo-color-t-tertiary, #4c4c4c);
+}
+.trk-board-hint kbd {
+  padding: 0 var(--arvo-space-4);
+  font-family: var(--o9-font-family-mono, monospace);
+  font-size: var(--arvo-font-size-10);
+  border: var(--arvo-border-1) solid var(--arvo-color-b-divider, #e5e5e5);
+  background-color: var(--arvo-color-s-layer-01, #fff);
+}
+
+/* The column under the pointer. A tinted surface rather than a border, so the
+   column does not change size the moment a drag enters it -- a target that
+   jumps as you approach it is harder to hit, not easier. */
+.trk-board__col--target { background-color: var(--arvo-color-s-theme-active-3, #e9e9e9); }
+
+/* Where the card would land. A line in the gap, not a space opened up: making
+   room mid-drag reflows every card below it and the one you are aiming at
+   moves away. */
+.trk-board__marker {
+  display: block;
+  height: var(--arvo-border-3);
+  margin: calc(var(--arvo-space-4) * -1) 0 var(--arvo-space-2);
+  background-color: var(--arvo-color-b-theme, #010101);
+}
+
+/* The card in the air. Faded in place, so the column keeps its shape and the
+   reader can still see where the card came from. */
+.trk-card--dragging { opacity: var(--arvo-opacity-40, 0.4); }
+.trk-card { cursor: grab; }
+.trk-card:active { cursor: grabbing; }
+
+@media (prefers-reduced-motion: reduce) {
+  .trk-card { transition: none; }
+}

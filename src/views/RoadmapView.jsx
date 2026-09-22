@@ -56,14 +56,14 @@ export default function RoadmapView({ subTab = 'all', onEditItem }) {
       {
         key: 'id',
         label: 'ID',
-        className: 'data-table__mono',
+        className: 'data-table__mono trk-col--meta',
         /* Sorts on the number so #451 follows #98 rather than preceding it. */
         sortValue: (w) => Number(String(w.id).replace(/\D/g, '')),
       },
       {
         key: 'title',
         label: 'Title',
-        className: 'trk-col-title',
+        className: 'trk-col-title trk-col--key',
         render: (w) => (
           <button type="button" className="link-cell" onClick={() => setOpenItem(w)}>
             {w.title}
@@ -72,12 +72,14 @@ export default function RoadmapView({ subTab = 'all', onEditItem }) {
         searchValue: (w) => `${w.title} ${w.problem}`,
         sortValue: (w) => w.title,
       },
-      { key: 'type', label: 'Type', render: (w) => <TypeMark type={w.type} />, sortValue: (w) => w.type },
+      { key: 'type', label: 'Type', className: 'trk-col--sep', headerClassName: 'trk-col--sep', render: (w) => <TypeMark type={w.type} />, sortValue: (w) => w.type },
       { key: 'area', label: 'Area' },
-      { key: 'component', label: 'Component', className: 'data-table__mono' },
+      { key: 'component', label: 'Component', className: 'data-table__mono trk-col--meta' },
       {
         key: 'priority',
         label: 'Priority',
+        className: 'trk-col--sep',
+        headerClassName: 'trk-col--sep',
         render: (w) => <PriorityBadge priority={w.priority} />,
         /* Sorts by severity of the priority, not alphabetically -- "Critical"
            before "High" before "Low" is the only order anyone means. */
@@ -91,14 +93,15 @@ export default function RoadmapView({ subTab = 'all', onEditItem }) {
         sortValue: (w) => STATUSES.findIndex((s) => s.id === w.status),
         searchValue: (w) => STATUS[w.status]?.label ?? '',
       },
-      { key: 'owner', label: 'Owner' },
+      { key: 'owner', label: 'Owner', className: 'trk-col--sep', headerClassName: 'trk-col--sep' },
       {
         key: 'requestingTeam',
         label: 'Requested by',
+        className: 'trk-col--meta',
         render: (w) => `${w.requestedBy} · ${TEAM[w.requestingTeam]?.name ?? ''}`,
         searchValue: (w) => `${w.requestedBy} ${TEAM[w.requestingTeam]?.name ?? ''}`,
       },
-      { key: 'targetRelease', label: 'Target', className: 'data-table__mono' },
+      { key: 'targetRelease', label: 'Target', className: 'data-table__mono trk-col--sep', headerClassName: 'trk-col--sep' },
       {
         key: 'requiredBy',
         label: 'Required by',
@@ -124,6 +127,7 @@ export default function RoadmapView({ subTab = 'all', onEditItem }) {
       {
         key: 'updated',
         label: 'Updated',
+        className: 'trk-col--meta',
         render: (w) => timeAgo(w.updated),
         sortValue: (w) => new Date(w.updated).getTime(),
       },

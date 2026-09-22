@@ -35,6 +35,13 @@ const BASE = '/arvotracker'
 
 const SECTIONS = [
   {
+    id: 'analytics',
+    label: 'Analytics',
+    icon: 'bar-chart',
+    title: 'Analytics',
+    lede: 'How everything is moving, month over month.',
+  },
+  {
     id: 'roadmap',
     label: 'Roadmap',
     /* Verified o9con names only -- an invented one renders an empty box and
@@ -80,17 +87,10 @@ const SECTIONS = [
     title: 'Violations',
     lede: 'What the scanner found on each push, and who to talk to about it.',
   },
-  {
-    id: 'analytics',
-    label: 'Analytics',
-    icon: 'bar-chart',
-    title: 'Analytics',
-    lede: 'How everything is moving, month over month.',
-  },
 ]
 
 const SECTION = Object.fromEntries(SECTIONS.map((s) => [s.id, s]))
-const DEFAULT_SECTION = 'roadmap'
+const DEFAULT_SECTION = 'analytics'
 
 const sectionFromPath = () => {
   const id = window.location.pathname.replace(/^\/arvotracker\/?/, '').split('/')[0]

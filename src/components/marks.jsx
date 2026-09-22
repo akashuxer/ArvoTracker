@@ -45,22 +45,21 @@ export function ViolationStatusBadge({ status, size }) {
 }
 
 /**
- * Severity, with its own glyph.
+ * Severity.
  *
- * The badge already carries the word, so the icon is redundant for a sighted
- * reader -- and that is the point. In a dense table scanned by shape it is the
- * fastest signal, and it is the one that survives being printed, screenshotted
- * in greyscale, or read by someone who cannot separate the reds from the ambers.
+ * One mark, not two. This used to render an o9con glyph beside the badge, on
+ * the reasoning that a shape survives greyscale and colour-blindness where a
+ * tint does not. That reasoning was already satisfied: ArvoBadge carries its
+ * own semantic icon AND the word "Critical". The extra glyph was a third
+ * encoding of something already said twice, and in a dense table it read as
+ * decoration -- two dots and a word per cell, in every row.
+ *
+ * Colour is never the only channel here, because the label is always present.
  */
 export function SeverityMark({ severity }) {
   const row = SEVERITY[severity]
   if (!row) return severity
-  return (
-    <span className="trk-severity">
-      <span className={`o9con o9con-${row.icon} trk-severity__ico trk-severity__ico--${row.id}`} aria-hidden="true" />
-      <Mark label={row.label} semantic={row.semantic} />
-    </span>
-  )
+  return <Mark label={row.label} semantic={row.semantic} />
 }
 
 export function TypeMark({ type }) {

@@ -88,11 +88,11 @@ export default function ViolationsView({ onEditItem }) {
 
   const columns = useMemo(
     () => [
-      { key: 'id', label: 'ID', className: 'data-table__mono', sortValue: (v) => Number(v.id.replace(/\D/g, '')) },
+      { key: 'id', label: 'ID', className: 'data-table__mono trk-col--meta', sortValue: (v) => Number(v.id.replace(/\D/g, '')) },
       {
         key: 'ruleId',
         label: 'Rule',
-        className: 'data-table__mono',
+        className: 'data-table__mono trk-col--key',
         render: (v) => (
           <button type="button" className="link-cell" onClick={() => setOpenRow(v)}>
             {v.ruleId}
@@ -109,24 +109,25 @@ export default function ViolationsView({ onEditItem }) {
         sortValue: (v) => SEVERITY[v.severity]?.rank ?? 9,
         searchValue: (v) => SEVERITY[v.severity]?.label ?? '',
       },
-      { key: 'repository', label: 'Repository', className: 'data-table__mono' },
+      { key: 'repository', label: 'Repository', className: 'data-table__mono trk-col--meta trk-col--sep', headerClassName: 'trk-col--sep' },
       { key: 'productArea', label: 'Product area' },
-      { key: 'branch', label: 'Branch', className: 'data-table__mono' },
-      { key: 'commitId', label: 'Commit', className: 'data-table__mono' },
+      { key: 'branch', label: 'Branch', className: 'data-table__mono trk-col--meta' },
+      { key: 'commitId', label: 'Commit', className: 'data-table__mono trk-col--meta' },
       { key: 'commitMessage', label: 'Commit message', className: 'trk-col-title' },
       { key: 'author', label: 'Author' },
       { key: 'team', label: 'Team', render: (v) => TEAM[v.team]?.name, searchValue: (v) => TEAM[v.team]?.name ?? '' },
       {
         key: 'detectedAt',
         label: 'Detected',
-        className: 'data-table__mono',
+        className: 'data-table__mono trk-col--meta trk-col--sep',
+        headerClassName: 'trk-col--sep',
         render: (v) => fmtDateTime(v.detectedAt),
         sortValue: (v) => new Date(v.detectedAt).getTime(),
       },
       {
         key: 'file',
         label: 'File',
-        className: 'data-table__mono',
+        className: 'data-table__mono trk-col--meta',
         render: (v) => `${v.file}:${v.line}`,
         searchValue: (v) => v.file,
       },
@@ -134,7 +135,7 @@ export default function ViolationsView({ onEditItem }) {
       {
         key: 'firstDetected',
         label: 'First detected',
-        className: 'data-table__mono',
+        className: 'data-table__mono trk-col--meta',
         render: (v) => timeAgo(v.firstDetected),
         sortValue: (v) => new Date(v.firstDetected).getTime(),
       },
@@ -152,11 +153,13 @@ export default function ViolationsView({ onEditItem }) {
       {
         key: 'status',
         label: 'Status',
+        className: 'trk-col--sep',
+        headerClassName: 'trk-col--sep',
         render: (v) => <ViolationStatusBadge status={v.status} />,
         sortValue: (v) => VIOLATION_STATUSES.findIndex((s) => s.id === v.status),
         searchValue: (v) => VIOLATION_STATUSES.find((s) => s.id === v.status)?.label ?? '',
       },
-      { key: 'assignee', label: 'Assigned owner' },
+      { key: 'assignee', label: 'Assigned owner', className: 'trk-col--meta' },
     ],
     []
   )

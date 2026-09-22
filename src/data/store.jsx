@@ -3,7 +3,7 @@ import {
   AREAS, AREA_HISTORY, DEVELOPERS, PULL_REQUESTS, PUSHES, TEAM, VIOLATIONS, WORK_ITEMS,
 } from './mock'
 import { RULE } from './rules'
-import { CLOSED_STATUSES, SETTLED_VIOLATION_STATUSES } from './enums'
+import { CLOSED_STATUSES, SETTLED_VIOLATION_STATUSES, STATUS } from './enums'
 
 /**
  * The tracker's whole data layer, behind one provider.
@@ -80,6 +80,66 @@ export function TrackerProvider({ children }) {
         return current.map((w) => (w.id === values.id ? { ...w, ...values, notes, updated: now } : w))
       }
       return [{ ...values, created: now, updated: now, notes: values.notes ?? [] }, ...current]
+    })
+  }, [])
+
+  /**
+   * Move a card on the board: to another column, or to another place in its own.
+   *
+   * `beforeId` is the card it should land above, or null for the end of the
+   * column.
+   *
+   * A status change still writes to the decision history, exactly as the edit
+   * form does. That was the original argument against drag-and-drop -- a drag
+   * records no reason -- and the answer is not to refuse the gesture but to
+   * make it say what it did. "Moved from Planned to In Design on the board" is
+   * a thinner note than someone typing a sentence, and it is infinitely better
+   * than the silent status change the board would otherwise perform.
+   *
+   * `rank` only exists once a column has been dragged in. Until then the column
+   * is ordered by priority, which is the right default for a queue; after a
+   * drag, that column is explicitly ordered and stays where it was put.
+   */
+  const moveWorkItem = useCallback((id, toStatus, beforeId = null) => {
+    setWorkItems((current) => {
+      const moving = current.find((w) => w.id === id)
+      if (!moving) return current
+      if (moving.status === toStatus && beforeId === id) return current
+
+      const now = new Date().toISOString()
+      const didChangeStatus = moving.status !== toStatus
+      const moved = {
+        ...moving,
+        status: toStatus,
+        updated: now,
+        notes: didChangeStatus
+          ? [
+              ...(moving.notes ?? []),
+              {
+                at: now,
+                by: moving.owner || 'Unassigned',
+                text: `Moved from ${STATUS[moving.status]?.label ?? moving.status} to ${
+                  STATUS[toStatus]?.label ?? toStatus
+                } on the board.`,
+              },
+            ]
+          : moving.notes,
+      }
+
+      /* Rebuild the target column's order, then stamp a rank on every card in
+         it. Ranking the whole column rather than squeezing a fractional value
+         between two neighbours keeps the numbers small and stable -- there is
+         no precision to run out of, and the order cannot drift. */
+      const others = current.filter((w) => w.id !== id)
+      const column = others.filter((w) => w.status === toStatus)
+      const at = beforeId ? column.findIndex((w) => w.id === beforeId) : -1
+      column.splice(at < 0 ? column.length : at, 0, moved)
+
+      const ranks = new Map(column.map((w, i) => [w.id, i]))
+      return current.map((w) => {
+        if (w.id === id) return { ...moved, rank: ranks.get(id) }
+        return ranks.has(w.id) ? { ...w, rank: ranks.get(w.id) } : w
+      })
     })
   }, [])
 
@@ -245,13 +305,14 @@ export function TrackerProvider({ children }) {
       ...derived,
       reload: load,
       saveWorkItem,
+      moveWorkItem,
       deleteWorkItem,
       nextWorkItemId,
       setViolationStatus,
       assignViolation,
       importScan,
     }),
-    [state, workItems, areas, violations, pushes, pullRequests, derived, load, saveWorkItem, deleteWorkItem, nextWorkItemId, setViolationStatus, assignViolation, importScan]
+    [state, workItems, areas, violations, pushes, pullRequests, derived, load, saveWorkItem, moveWorkItem, deleteWorkItem, nextWorkItemId, setViolationStatus, assignViolation, importScan]
   )
 
   return <TrackerContext.Provider value={value}>{children}</TrackerContext.Provider>

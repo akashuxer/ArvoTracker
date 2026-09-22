@@ -254,9 +254,9 @@ export default function AdoptionView({ subTab = 'prs' }) {
   if (status === 'loading') return <ViewLoading message="Measuring adoption…" />
 
   const prColumns = [
-    { key: 'id', label: 'PR', className: 'data-table__mono', sortValue: (p) => p.number },
-    { key: 'title', label: 'Title', className: 'trk-col-title' },
-    { key: 'repository', label: 'Repository', className: 'data-table__mono' },
+    { key: 'id', label: 'PR', className: 'data-table__mono trk-col--meta', sortValue: (p) => p.number },
+    { key: 'title', label: 'Title', className: 'trk-col-title trk-col--key' },
+    { key: 'repository', label: 'Repository', className: 'data-table__mono trk-col--meta trk-col--sep', headerClassName: 'trk-col--sep' },
     { key: 'productArea', label: 'Area' },
     { key: 'team', label: 'Team', render: (p) => TEAM[p.team]?.name, searchValue: (p) => TEAM[p.team]?.name ?? '' },
     {
@@ -272,7 +272,8 @@ export default function AdoptionView({ subTab = 'prs' }) {
     {
       key: 'adoption',
       label: 'Arvo adoption',
-      className: 'trk-col-bar',
+      className: 'trk-col-bar trk-col--sep',
+      headerClassName: 'trk-col--sep',
       /* The bar and the figure together, and a PR that touched no UI says so
          rather than scoring 0% -- a config change is not a failure to adopt. */
       render: (p) =>
@@ -326,6 +327,7 @@ export default function AdoptionView({ subTab = 'prs' }) {
     {
       key: 'name',
       label: 'Developer',
+      className: 'trk-col--key',
       render: (d) => (
         <button type="button" className="link-cell" onClick={() => setOpenDev(d)}>
           {d.name}
@@ -334,7 +336,7 @@ export default function AdoptionView({ subTab = 'prs' }) {
       sortValue: (d) => d.name,
     },
     { key: 'team', label: 'Team', render: (d) => TEAM[d.team]?.name, searchValue: (d) => TEAM[d.team]?.name ?? '' },
-    { key: 'prs', label: 'Merged PRs' },
+    { key: 'prs', label: 'Merged PRs', className: 'trk-col--sep', headerClassName: 'trk-col--sep' },
     {
       key: 'pct',
       label: 'Arvo adoption',
@@ -379,7 +381,7 @@ export default function AdoptionView({ subTab = 'prs' }) {
     {
       key: 'name',
       label: 'Component',
-      className: 'data-table__mono',
+      className: 'data-table__mono trk-col--key',
       render: (c) => (
         <span className="trk-comp">
           {c.name}
@@ -391,7 +393,7 @@ export default function AdoptionView({ subTab = 'prs' }) {
     },
     { key: 'group', label: 'Group' },
     { key: 'since', label: 'Since', className: 'data-table__mono' },
-    { key: 'uses', label: 'Uses' },
+    { key: 'uses', label: 'Uses', className: 'trk-col--sep', headerClassName: 'trk-col--sep' },
     { key: 'prs', label: 'PRs' },
     { key: 'developers', label: 'Developers' },
     { key: 'teams', label: 'Teams' },

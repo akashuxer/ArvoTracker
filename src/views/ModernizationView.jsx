@@ -66,6 +66,7 @@ export default function ModernizationView({ onEditItem }) {
       {
         key: 'name',
         label: 'Product area',
+        className: 'trk-col--key',
         render: (a) => (
           <button type="button" className="link-cell" onClick={() => setOpenArea(a)}>
             {a.name}
@@ -74,9 +75,9 @@ export default function ModernizationView({ onEditItem }) {
         sortValue: (a) => a.name,
         searchValue: (a) => `${a.name} ${a.notes}`,
       },
-      { key: 'team', label: 'Team', render: (a) => TEAM[a.team]?.name, searchValue: (a) => TEAM[a.team]?.name ?? '' },
-      { key: 'owner', label: 'Owner' },
-      { key: 'total', label: 'UI areas' },
+      { key: 'team', label: 'Team', className: 'trk-col--meta', render: (a) => TEAM[a.team]?.name, searchValue: (a) => TEAM[a.team]?.name ?? '' },
+      { key: 'owner', label: 'Owner', className: 'trk-col--meta' },
+      { key: 'total', label: 'UI areas', className: 'trk-col--sep', headerClassName: 'trk-col--sep' },
       { key: 'migrated', label: 'Migrated' },
       { key: 'partial', label: 'Partial' },
       { key: 'legacy', label: 'Legacy' },
@@ -101,19 +102,24 @@ export default function ModernizationView({ onEditItem }) {
       {
         key: 'target',
         label: 'Target completion',
+        className: 'trk-col--meta trk-col--sep',
+        headerClassName: 'trk-col--sep',
         render: (a) => fmtDate(a.target),
         sortValue: (a) => (a.target ? new Date(a.target).getTime() : Infinity),
       },
-      { key: 'arvoVersion', label: 'Arvo version', className: 'data-table__mono' },
+      { key: 'arvoVersion', label: 'Arvo version', className: 'data-table__mono trk-col--meta' },
       {
         key: 'lastActivity',
         label: 'Last activity',
+        className: 'trk-col--meta',
         render: (a) => timeAgo(a.lastActivity),
         sortValue: (a) => new Date(a.lastActivity).getTime(),
       },
       {
         key: 'dependencies',
         label: 'Waiting on',
+        className: 'trk-col--sep',
+        headerClassName: 'trk-col--sep',
         isSortable: false,
         render: (a) =>
           a.dependencies.length ? (

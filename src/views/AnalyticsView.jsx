@@ -376,6 +376,7 @@ export default function AnalyticsView() {
       {
         key: 'name',
         label: 'Developer',
+        className: 'trk-col--key',
         render: (r) => (
           <button type="button" className="link-cell" onClick={() => setOpenDev(DEVELOPER[r.name])}>
             {r.name}
@@ -383,8 +384,8 @@ export default function AnalyticsView() {
         ),
         sortValue: (r) => r.name,
       },
-      { key: 'team', label: 'Team' },
-      { key: 'prs', label: 'Merged PRs' },
+      { key: 'team', label: 'Team', className: 'trk-col--meta' },
+      { key: 'prs', label: 'Merged PRs', className: 'trk-col--sep', headerClassName: 'trk-col--sep' },
       {
         key: 'pct',
         label: 'Arvo adoption',
@@ -413,7 +414,7 @@ export default function AnalyticsView() {
         searchValue: (r) => (r.move.change === 0 ? 'flat' : formatMovement(r.move, 'pp')),
       },
       { key: 'distinct', label: 'Components used' },
-      { key: 'open', label: 'Open findings' },
+      { key: 'open', label: 'Open findings', className: 'trk-col--sep', headerClassName: 'trk-col--sep' },
       { key: 'repeated', label: 'Repeated' },
       {
         key: 'rate',

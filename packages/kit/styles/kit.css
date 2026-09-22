@@ -1551,22 +1551,35 @@ body {
    `0` basis the tile was shorter than the chart inside it and its background
    stopped halfway down. */
 .report-tile--full {
-  flex: 1 0 auto;
+  flex: 1 1 auto;
   min-height: 0;
 }
 
-/* A chart is a flex item in a column tile, so it SHRINKS by default. On a
-   short viewport that made an expanded chart come out smaller than the
-   collapsed one it replaced -- the tile got whatever height was left, and the
-   chart gave up the difference. It keeps the height Highcharts was told to
-   draw at, and the content area scrolls instead. */
-.report-tile--full .chart,
-.report-tile--full .highcharts-container {
-  flex: 0 0 auto;
+/* The expanded tile's content FILLS it.
+   `flex: 0 0 auto` kept the chart at the pixel height Highcharts was told to
+   draw at, so expanding a tile grew the tile and left a band of empty white
+   beneath a chart that had not moved. The height here beats the inline one the
+   Chart component sets from its options -- that inline height is what the
+   collapsed state needs, and this is what overrides it -- and Chart's own
+   ResizeObserver reports the new size back to Highcharts so it actually
+   redraws rather than stretching. */
+.report-tile--full .chart {
+  flex: 1 1 auto;
+  height: auto !important;
+  min-height: 240px;
 }
 
+.report-tile--full .highcharts-container {
+  height: 100% !important;
+  width: 100% !important;
+}
+
+/* A table in an expanded tile does the same: takes the space and scrolls
+   inside it, rather than running past the bottom of the column. */
 .report-tile--full .table-scroll,
 .report-tile--full .matrix-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
 }
 
