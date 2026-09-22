@@ -1,9 +1,8 @@
 import { useMemo } from 'react'
-import { ArvoButton } from '@arvo/react'
 import { Chart } from '@o9qa/kit'
 import { ArvoVisualPalette } from '@o9qa/kit'
 import DetailPanel from './DetailPanel'
-import { DetailList, DetailSection, Field } from './DetailList'
+import PanelSections from './PanelSections'
 import { AdoptionBar, SeverityMark, fmtDate, timeAgo } from './marks'
 import { TEAM, adoptionOf } from '../data/mock'
 import { PUBLIC_COMPONENTS } from '../data/catalog'
@@ -120,10 +119,10 @@ export default function DeveloperDetail({ developer, isOpen, onClose }) {
       {developer && data && (
         <div className="trk-detail">
           <header className="trk-detail__head">
-            <h2 className="trk-detail__title">{developer.name}</h2>
-            <p className="trk-prose trk-prose--quiet">
+            <span className="trk-detail__eyebrow">
               {TEAM[developer.team]?.name} · {developer.repo}
-            </p>
+            </span>
+            <h2 className="trk-detail__title">{developer.name}</h2>
             {data.pct !== null && (
               <div className="trk-progress trk-progress--lg">
                 <AdoptionBar arvo={data.arvo} legacy={data.legacy} />
@@ -132,145 +131,139 @@ export default function DeveloperDetail({ developer, isOpen, onClose }) {
             )}
           </header>
 
-          <DetailSection title="Adoption over the last year">
-            {chart && <Chart options={chart} />}
-            <DetailList>
-              <Field label="This month vs last">
-                <span className={`trk-move trk-move--${data.move.favourability ?? 'flat'}`}>
-                  {data.move.change === 0 ? 'no change' : formatMovement(data.move, 'pp')}
-                </span>
-              </Field>
-              <Field label="Merged PRs">{data.merged.length}</Field>
-              <Field label="PRs that touched UI">{data.withUi.length}</Field>
-              <Field label="Last merged">{data.lastPr ? `${fmtDate(data.lastPr)} (${timeAgo(data.lastPr)})` : ''}</Field>
-            </DetailList>
-          </DetailSection>
-
-          <DetailSection title="Reaches for most">
-            {data.top.length ? (
-              <ul className="trk-list">
-                {data.top.slice(0, 8).map(([name, n]) => (
-                  <li key={name}>
-                    <span className="trk-rule-row">
-                      <code className="trk-code">{name}</code>
-                      <span className="trk-rule-row__title">{n} uses</span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="trk-prose trk-prose--quiet">No Arvo components in merged work yet.</p>
-            )}
-          </DetailSection>
-
-          <DetailSection title="Still on legacy controls">
-            {data.legacyTop.length ? (
-              <>
-                <p className="trk-prose trk-prose--quiet">
-                  Each of these has an Arvo equivalent today. Most predate it, which is why they are
-                  here — the Modernization board tracks the areas they live in.
-                </p>
-                <ul className="trk-pills">
-                  {data.legacyTop.map(([name, n]) => (
-                    <li className="trk-pill trk-pill--legacy" key={name}>
-                      {name} · {n}
-                    </li>
-                  ))}
-                </ul>
-              </>
-            ) : (
-              <p className="trk-prose trk-prose--quiet">None — every UI control in their merged work is Arvo.</p>
-            )}
-          </DetailSection>
-
-          <DetailSection title={`Components not met yet — ${data.notMet.length} of ${PUBLIC_COMPONENTS.length}`}>
-            <p className="trk-prose trk-prose--quiet">
-              Not a gap to close for its own sake. It is useful for one thing: if a component here
-              would have saved work in a PR they just wrote, that is a documentation problem, not a
-              person problem.
+          <div className="trk-action">
+            <p className="trk-action__where">
+              <code>{data.merged.length} merged PRs</code>
+              <span className={`trk-move trk-move--${data.move.favourability ?? 'flat'}`}>
+                {data.move.change === 0 ? 'flat this month' : `${formatMovement(data.move, 'pp')} this month`}
+              </span>
             </p>
-            <ul className="trk-pills">
-              {data.notMet.slice(0, 18).map((c) => (
-                <li className="trk-pill" key={c.name}>
-                  {c.name.replace('Arvo', '')}
-                </li>
-              ))}
-              {data.notMet.length > 18 && <li className="trk-muted">+{data.notMet.length - 18} more</li>}
-            </ul>
-          </DetailSection>
-
-          {data.internal.length > 0 && (
-            <DetailSection title="Internal components used directly">
-              <p className="trk-prose">
-                {data.internal.length} PR{data.internal.length > 1 ? 's' : ''} imported an internal
-                building block. These are exported so the public components can use them, but they
-                are not part of the developer surface and they change without notice — worth a word,
-                because nothing in the type system says so.
-              </p>
-              <ul className="trk-list">
-                {data.internal.slice(0, 5).map((p) => (
-                  <li key={p.id}>
-                    <span className="trk-rule-row">
-                      <code className="trk-code">{p.id}</code>
-                      <span className="trk-rule-row__title">
-                        {p.usedInternal} in {p.title}
-                      </span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </DetailSection>
-          )}
-
-          <DetailSection title="Open findings, grouped by rule">
-            {data.rules.length ? (
-              <>
-                <p className="trk-prose trk-prose--quiet">
-                  {data.open.length} open across {data.rules.length} rule
-                  {data.rules.length > 1 ? 's' : ''}. Grouped, because that is the shape help takes —
-                  eleven findings on one rule is one explanation.
-                </p>
-                <ul className="trk-list">
-                  {data.rules.map(([ruleId, n]) => (
-                    <li key={ruleId}>
-                      <span className="trk-rule-row">
-                        <code className="trk-code">{ruleId}</code>
-                        <SeverityMark severity={RULE[ruleId]?.severity} />
-                        <span className="trk-rule-row__title">{RULE[ruleId]?.title}</span>
-                        <span className="trk-rule-row__count">{n}</span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            ) : (
-              <p className="trk-prose trk-prose--quiet">Nothing open.</p>
-            )}
-          </DetailSection>
-
-          {data.blockedByArvo.length > 0 && (
-            <DetailSection title="Not theirs to fix">
-              <p className="trk-prose">
-                A rule they keep hitting has a roadmap item against it. Until that ships, the
-                finding is the design system's to answer, not this person's — and saying so is the
-                single most useful thing this panel can do.
-              </p>
-              <ul className="trk-list">
-                {data.blockedByArvo.map((w) => (
-                  <li key={w.id}>
-                    <span className="trk-rule-row">
-                      <code className="trk-code">{w.id}</code>
-                      <span className="trk-rule-row__title">{w.title}</span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </DetailSection>
-          )}
-
-          <div className="form-actions">
-            <ArvoButton variant="secondary" label="Close" onClick={onClose} />
+            {chart && <Chart options={chart} />}
           </div>
+
+          <PanelSections
+            items={[
+              data.top.length && {
+                id: 'reaches',
+                title: 'Reaches for most',
+                icon: 'grid',
+                badge: { message: `${data.top.length} of ${PUBLIC_COMPONENTS.length}` },
+                content: (
+                  <ul className="trk-list">
+                    {data.top.slice(0, 10).map(([name, n]) => (
+                      <li key={name}>
+                        <span className="trk-rule-row">
+                          <code className="trk-code">{name}</code>
+                          <span className="trk-rule-row__count">{n}</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ),
+              },
+              data.legacyTop.length && {
+                id: 'legacy',
+                title: 'Still on legacy controls',
+                icon: 'history',
+                badge: { message: String(data.legacyTop.length), semanticType: 'warning' },
+                content: (
+                  <ul className="trk-pills">
+                    {data.legacyTop.map(([name, n]) => (
+                      <li className="trk-pill trk-pill--legacy" key={name}>
+                        {name} · {n}
+                      </li>
+                    ))}
+                  </ul>
+                ),
+              },
+              {
+                id: 'notmet',
+                title: 'Components not met yet',
+                icon: 'question-circle',
+                badge: { message: String(data.notMet.length) },
+                content: (
+                  <>
+                    <p className="trk-prose trk-prose--quiet">
+                      Useful for one thing: if something here would have saved work in a PR they
+                      just wrote, that is a documentation problem.
+                    </p>
+                    <ul className="trk-pills">
+                      {data.notMet.map((c) => (
+                        <li className="trk-pill" key={c.name}>
+                          {c.name.replace('Arvo', '')}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                ),
+              },
+              data.rules.length && {
+                id: 'findings',
+                title: 'Open findings by rule',
+                icon: 'exclamation-triangle',
+                badge: { message: String(data.open.length), semanticType: 'warning' },
+                content: (
+                  <ul className="trk-list">
+                    {data.rules.map(([ruleId, n]) => (
+                      <li key={ruleId}>
+                        <span className="trk-rule-row">
+                          <code className="trk-code">{ruleId}</code>
+                          <SeverityMark severity={RULE[ruleId]?.severity} />
+                          <span className="trk-rule-row__title">{RULE[ruleId]?.title}</span>
+                          <span className="trk-rule-row__count">{n}</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ),
+              },
+              data.blockedByArvo.length && {
+                id: 'notmine',
+                title: 'Not theirs to fix',
+                icon: 'clipboard',
+                badge: { message: String(data.blockedByArvo.length), semanticType: 'info' },
+                content: (
+                  <>
+                    <p className="trk-prose trk-prose--quiet">
+                      A rule they keep hitting has a roadmap item against it, so it is the design
+                      system’s to answer.
+                    </p>
+                    <ul className="trk-list">
+                      {data.blockedByArvo.map((w) => (
+                        <li key={w.id}>
+                          <span className="trk-rule-row">
+                            <code className="trk-code">{w.id}</code>
+                            <span className="trk-rule-row__title">{w.title}</span>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                ),
+              },
+              data.internal.length && {
+                id: 'internal',
+                title: 'Internal components used directly',
+                icon: 'exclamation-triangle',
+                badge: { message: String(data.internal.length), semanticType: 'warning' },
+                content: (
+                  <ul className="trk-list">
+                    {data.internal.slice(0, 5).map((pu) => (
+                      <li key={pu.id}>
+                        <span className="trk-rule-row">
+                          <code className="trk-code">{pu.id}</code>
+                          <span className="trk-rule-row__title">
+                            {pu.usedInternal} in {pu.title}
+                          </span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ),
+              },
+            ]}
+          />
+
         </div>
       )}
     </DetailPanel>

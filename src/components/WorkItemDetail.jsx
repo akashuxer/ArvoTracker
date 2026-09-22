@@ -1,7 +1,8 @@
 import { ArvoButton } from '@arvo/react'
 import DetailPanel from './DetailPanel'
+import PanelSections from './PanelSections'
 import Timeline from './Timeline'
-import { DetailList, DetailSection, Field, MaybeLink } from './DetailList'
+import { DetailList, Field, MaybeLink } from './DetailList'
 import { PriorityBadge, StatusBadge, TypeMark, fmtDate, fmtDateTime, timeAgo } from './marks'
 import { TEAM } from '../data/mock'
 import { useTracker } from '../data/store'
@@ -33,6 +34,7 @@ export default function WorkItemDetail({ item, isOpen, onClose, onEdit }) {
       {item && (
         <div className="trk-detail">
           <header className="trk-detail__head">
+            <span className="trk-detail__eyebrow">{item.id}</span>
             <h2 className="trk-detail__title">{item.title}</h2>
             <div className="trk-detail__marks">
               <TypeMark type={item.type} />
@@ -41,88 +43,92 @@ export default function WorkItemDetail({ item, isOpen, onClose, onEdit }) {
             </div>
           </header>
 
-          <DetailSection title="Problem statement">
-            <p className="trk-prose">{item.problem}</p>
-          </DetailSection>
+          <div className="trk-action">
+            <p className="trk-action__fix">{item.problem}</p>
+          </div>
 
-          <DetailSection title="Classification">
-            <DetailList>
-              <Field label="Area">{item.area}</Field>
-              <Field label="Component or pattern">{item.component}</Field>
-              <Field label="Target release">{item.targetRelease}</Field>
-              <Field label="Required by">{fmtDate(item.requiredBy)}</Field>
-            </DetailList>
-          </DetailSection>
-
-          <DetailSection title="People">
-            <DetailList>
-              <Field label="Requested by">{item.requestedBy}</Field>
-              <Field label="Requesting team">{TEAM[item.requestingTeam]?.name}</Field>
-              <Field label="Owner">{item.owner}</Field>
-              <Field label="Team contact">{TEAM[item.requestingTeam]?.contact}</Field>
-            </DetailList>
-          </DetailSection>
-
-          <DetailSection title="Dates">
-            <DetailList>
-              <Field label="Created">{fmtDate(item.created)}</Field>
-              <Field label="Last updated">{`${fmtDate(item.updated)} (${timeAgo(item.updated)})`}</Field>
-            </DetailList>
-          </DetailSection>
-
-          <DetailSection title="Links">
-            <DetailList columns={1}>
-              <Field label="Figma">
-                <MaybeLink href={item.figma}>Open the design file</MaybeLink>
-              </Field>
-              <Field label="Development ticket">
-                <MaybeLink href={item.ticket}>Open the ticket</MaybeLink>
-              </Field>
-            </DetailList>
-          </DetailSection>
-
-          {blocking.length > 0 && (
-            /* The reason the three sections are one app. An item is not just a
-               row in a backlog -- it is the thing a migration is waiting on, and
-               that is worth saying on the item itself. */
-            <DetailSection title="Product areas waiting on this">
-              <ul className="trk-list">
-                {blocking.map((a) => (
-                  <li key={a.id}>
-                    <strong>{a.name}</strong> — {a.notes}
-                  </li>
-                ))}
-              </ul>
-            </DetailSection>
-          )}
-
-          <DetailSection title="Notes and decision history">
-            {item.notes?.length ? (
-              /* The same timeline the violation history uses. Decision history
-                 is the archetypal case for it: events, in sequence, where when
-                 something was decided is half the meaning. */
-              <Timeline
-                items={item.notes
-                  .slice()
-                  .reverse()
-                  .map((n, i) => ({
-                    id: `${n.at}-${i}`,
-                    label: n.by,
-                    at: fmtDateTime(n.at),
-                    text: n.text,
-                    tone: i === 0 ? 'info' : undefined,
-                  }))}
-              />
-            ) : (
-              <p className="trk-prose trk-prose--quiet">
-                No decisions recorded yet. Anything worth explaining later — why this was deferred,
-                what was ruled out — belongs here.
-              </p>
-            )}
-          </DetailSection>
+          <PanelSections
+            items={[
+              {
+                id: 'facts',
+                title: 'Classification and ownership',
+                icon: 'clipboard',
+                content: (
+                  <DetailList>
+                    <Field label="Area">{item.area}</Field>
+                    <Field label="Component">{item.component}</Field>
+                    <Field label="Target release">{item.targetRelease}</Field>
+                    <Field label="Required by">{fmtDate(item.requiredBy)}</Field>
+                    <Field label="Requested by">{item.requestedBy}</Field>
+                    <Field label="Requesting team">{TEAM[item.requestingTeam]?.name}</Field>
+                    <Field label="Owner">{item.owner}</Field>
+                    <Field label="Contact">{TEAM[item.requestingTeam]?.contact}</Field>
+                    <Field label="Created">{fmtDate(item.created)}</Field>
+                    <Field label="Updated">{timeAgo(item.updated)}</Field>
+                  </DetailList>
+                ),
+              },
+              (item.figma || item.ticket) && {
+                id: 'links',
+                title: 'Links',
+                icon: 'globe',
+                content: (
+                  <DetailList columns={1}>
+                    <Field label="Figma">
+                      <MaybeLink href={item.figma}>Open the design file</MaybeLink>
+                    </Field>
+                    <Field label="Development ticket">
+                      <MaybeLink href={item.ticket}>Open the ticket</MaybeLink>
+                    </Field>
+                  </DetailList>
+                ),
+              },
+              blocking.length && {
+                id: 'blocking',
+                title: 'Areas waiting on this',
+                icon: 'repeat',
+                badge: { message: String(blocking.length), semanticType: 'warning' },
+                content: (
+                  <ul className="trk-list">
+                    {blocking.map((a) => (
+                      <li key={a.id}>
+                        <span className="trk-rule-row">
+                          <strong>{a.name}</strong>
+                          <span className="trk-rule-row__title">{a.notes}</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ),
+              },
+              {
+                id: 'history',
+                title: 'Decision history',
+                icon: 'history',
+                badge: item.notes?.length ? { message: String(item.notes.length) } : null,
+                content: item.notes?.length ? (
+                  <Timeline
+                    items={item.notes
+                      .slice()
+                      .reverse()
+                      .map((n, i) => ({
+                        id: `${n.at}-${i}`,
+                        label: n.by,
+                        at: fmtDateTime(n.at),
+                        text: n.text,
+                        tone: i === 0 ? 'info' : undefined,
+                      }))}
+                  />
+                ) : (
+                  <p className="trk-prose trk-prose--quiet">
+                    Nothing recorded yet. Anything worth explaining later belongs here.
+                  </p>
+                ),
+              },
+            ]}
+          />
 
           <div className="form-actions">
-            <ArvoButton variant="secondary" label="Close" onClick={onClose} />
             <ArvoButton variant="primary" label="Edit item" icon="pencil" onClick={() => onEdit(item)} />
           </div>
         </div>

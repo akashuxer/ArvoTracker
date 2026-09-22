@@ -10,60 +10,33 @@ over one set of data. Built on the o9 Design System (Arvo) and the shared
 
 ## Running it
 
-**You need nothing but Python.** The built app is committed, so a clone runs
-with no Node, no npm and no Arvo credential:
-
-```bash
-python3 tools/serve.py
-```
-
-Then open **http://localhost:8000/arvotracker/**.
-
-`tools/serve.py` is Python's own stdlib server plus one rule: anything under
-`/arvotracker` that is not a real file falls back to `index.html`. That is the
-same rule `vercel.json` applies in production, so local and deployed behave
-alike. `python3 -m http.server --directory dist` very nearly works, but it
-serves files and nothing else — `/arvotracker/` loads and then refreshing on
-`/arvotracker/analytics` returns 404, because that route only exists once the
-app is running.
-
-> **Do not run `npm install` just to look at this.** It fails with `E401`
-> against o9's private package feed, and you do not need it — the built front
-> end is already in the repository. npm is only for *changing* the source.
-
-### Changing the source
-
-Only then do you need Node 20 and feed access:
-
 ```bash
 npm install
-npm run dev          # http://localhost:3000/arvotracker
+npm run dev
 ```
 
-### Why the build is committed
+Then open **http://localhost:3000/arvotracker** (the bare path redirects; `/`
+works too).
 
-`dist/` is in git on purpose. `@arvo/*` is published to a private Azure
-Artifacts feed, so no build host and no colleague can install it without a
-personal token — committing the output is what makes this repo clone-and-run
-for anyone, and what lets it deploy with no build step and no credential on the
-server.
+`npm install` needs an Arvo feed credential — see the next section. It is a
+one-time setup and you almost certainly already have it.
 
-The cost is that **a change which is not rebuilt reaches nobody**, silently: the
-build is green, the tests pass, and the deployed screen is the previous one. So
-the build stamps a hash of the source into the bundle, and:
+### If you do not have feed access
+
+The built app is committed, so you can run it with Python and no credentials at
+all:
 
 ```bash
-npm run check:bundle     # fails if dist/ does not match src/
+python3 tools/serve.py          # http://localhost:8000/arvotracker/
 ```
 
-Run `npm run build` and commit `dist/` with every source change. A hash rather
-than file timestamps, because git does not preserve mtimes — on a fresh clone
-every file carries the checkout time, so a timestamp check is meaningless
-exactly where a stranger would run it.
+That is the path to hand a colleague who just wants to look at it — it needs no
+Node, no npm and no token. It serves the last committed build, so it will not
+pick up source edits; for that you need `npm run dev`.
 
 ### One-time setup: the Arvo feed
 
-Only needed to *change* the front end. `npm install` needs a credential. `@arvo/react` and friends are published to
+`@arvo/react` and friends are published to
 o9's private Azure Artifacts feed, not to public npm. The repo's `.npmrc` points
 the `@arvo` scope at that feed and deliberately carries **no token**.
 

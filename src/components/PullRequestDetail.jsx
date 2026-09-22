@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
-import { ArvoButton } from '@arvo/react'
 import DetailPanel from './DetailPanel'
+import PanelSections from './PanelSections'
 import Timeline from './Timeline'
-import { DetailList, DetailSection, Field } from './DetailList'
+import { DetailList, Field } from './DetailList'
 import { AdoptionBar, SeverityMark, ViolationStatusBadge, fmtDateTime, timeAgo } from './marks'
 import { COMPONENT, LEGACY } from '../data/catalog'
 import { TEAM, adoptionOf, countOf } from '../data/mock'
@@ -55,136 +55,153 @@ export default function PullRequestDetail({ pr, isOpen, onClose, onOpenDeveloper
       {pr && data && (
         <div className="trk-detail">
           <header className="trk-detail__head">
+            <span className="trk-detail__eyebrow">
+              {pr.id} · {pr.repository}
+            </span>
             <h2 className="trk-detail__title">{pr.title}</h2>
-            <p className="trk-prose trk-prose--quiet">
-              {pr.repository} · {pr.branch}
-            </p>
-            {data.adoption ? (
+            {data.adoption && (
               <div className="trk-progress trk-progress--lg">
                 <AdoptionBar arvo={data.adoption.arvo} legacy={data.adoption.legacy} />
                 <span className="trk-progress__pct">{data.adoption.pct}%</span>
               </div>
-            ) : (
-              <p className="trk-prose trk-prose--quiet">
-                This change touched no UI components, so it has no adoption ratio — a config or
-                test change is not a failure to adopt.
-              </p>
             )}
           </header>
 
-          <DetailSection title="Who and when">
-            <DetailList>
-              <Field label="Author">
-                {/* Still reachable, just no longer the only link in the row --
-                    the PR is what the table is a list of. */}
-                <button type="button" className="link-cell" onClick={() => onOpenDeveloper?.(pr.author)}>
-                  {pr.author}
-                </button>
-              </Field>
-              <Field label="Team">{TEAM[pr.team]?.name}</Field>
-              <Field label="Product area">{pr.productArea}</Field>
-              <Field label="Files changed">{pr.filesChanged}</Field>
-              <Field label="Opened">{fmtDateTime(pr.openedAt)}</Field>
-              <Field label="State">
+          <div className="trk-action">
+            <p className="trk-action__where">
+              <code>{pr.branch}</code>
+              <span className="trk-action__count">
                 {pr.status === 'merged' ? `merged ${timeAgo(pr.mergedAt)}` : pr.status}
-              </Field>
-            </DetailList>
-          </DetailSection>
-
-          <DetailSection title={`Arvo components used — ${countOf(pr.arvoUsed)} uses`}>
-            {data.arvo.length ? (
-              <ul className="trk-list">
-                {data.arvo.map(([name, n]) => (
-                  <li key={name}>
-                    <span className="trk-rule-row">
-                      <code className="trk-code">{name}</code>
-                      <span className="trk-rule-row__title">
-                        {COMPONENT[name]?.group}
-                        {COMPONENT[name]?.isDeprecated ? ' · deprecated' : ''}
-                      </span>
-                      <span className="trk-rule-row__count">{n}</span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="trk-prose trk-prose--quiet">None.</p>
-            )}
-          </DetailSection>
-
-          <DetailSection title={`Legacy controls still used — ${countOf(pr.legacyUsed)} uses`}>
-            {data.legacy.length ? (
-              <>
-                <p className="trk-prose trk-prose--quiet">
-                  Each of these has an Arvo equivalent today. Most predate it, which is why they are
-                  here.
-                </p>
-                <ul className="trk-list">
-                  {data.legacy.map(([name, n]) => (
-                    <li key={name}>
-                      <span className="trk-rule-row">
-                        <code className="trk-code">{name}</code>
-                        <span className="trk-rule-row__title">
-                          use {LEGACY[name]?.useInstead ?? 'an Arvo equivalent'}
-                        </span>
-                        <span className="trk-rule-row__count">{n}</span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            ) : (
-              <p className="trk-prose trk-prose--quiet">
-                None — every UI control this change added is Arvo.
-              </p>
-            )}
-          </DetailSection>
-
-          {pr.usedInternal && (
-            <DetailSection title="Internal component used directly">
-              <p className="trk-prose">
-                This change imported <code className="trk-code">{pr.usedInternal}</code>, which is
-                exported so the public components can use it but is not part of the developer
-                surface — it changes without notice. Use{' '}
-                <code className="trk-code">{COMPONENT[pr.usedInternal]?.useInstead}</code> instead.
-              </p>
-            </DetailSection>
-          )}
-
-          <DetailSection title={`Findings — ${data.open.length} open of ${data.violations.length}`}>
-            {data.violations.length ? (
-              <ul className="trk-list">
-                {data.violations.map((v) => (
-                  <li key={v.id}>
-                    <span className="trk-rule-row">
-                      <code className="trk-code">{v.ruleId}</code>
-                      <SeverityMark severity={v.severity} />
-                      <span className="trk-rule-row__title">{RULE[v.ruleId]?.title}</span>
-                      <ViolationStatusBadge status={v.status} />
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="trk-prose trk-prose--quiet">The scanner found nothing on this one.</p>
-            )}
-          </DetailSection>
-
-          <DetailSection title="Pushes">
-            <Timeline
-              items={data.pushes.map((p, i) => ({
-                id: p.id,
-                label: p.commitId,
-                at: fmtDateTime(p.timestamp),
-                text: p.commitMessage,
-                tone: i === 0 ? 'info' : undefined,
-              }))}
-            />
-          </DetailSection>
-
-          <div className="form-actions">
-            <ArvoButton variant="secondary" label="Close" onClick={onClose} />
+              </span>
+            </p>
+            <p className="trk-action__fix">
+              {data.adoption
+                ? `${data.adoption.arvo} Arvo component uses against ${data.adoption.legacy} legacy, across ${pr.filesChanged} files.`
+                : `No UI components touched — ${pr.filesChanged} files changed.`}
+            </p>
           </div>
+
+          <PanelSections
+            items={[
+              data.arvo.length && {
+                id: 'arvo',
+                title: 'Arvo components used',
+                icon: 'grid',
+                badge: { message: String(countOf(pr.arvoUsed)) },
+                content: (
+                  <ul className="trk-list">
+                    {data.arvo.map(([name, n]) => (
+                      <li key={name}>
+                        <span className="trk-rule-row">
+                          <code className="trk-code">{name}</code>
+                          <span className="trk-rule-row__title">{COMPONENT[name]?.group}</span>
+                          <span className="trk-rule-row__count">{n}</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ),
+              },
+              data.legacy.length && {
+                id: 'legacy',
+                title: 'Legacy controls still used',
+                icon: 'history',
+                badge: { message: String(countOf(pr.legacyUsed)), semanticType: 'warning' },
+                content: (
+                  <ul className="trk-list">
+                    {data.legacy.map(([name, n]) => (
+                      <li key={name}>
+                        <span className="trk-rule-row">
+                          <code className="trk-code">{name}</code>
+                          <span className="trk-rule-row__title">
+                            use {LEGACY[name]?.useInstead ?? 'an Arvo equivalent'}
+                          </span>
+                          <span className="trk-rule-row__count">{n}</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ),
+              },
+              pr.usedInternal && {
+                id: 'internal',
+                title: 'Internal component used directly',
+                icon: 'exclamation-triangle',
+                badge: { message: '1', semanticType: 'warning' },
+                content: (
+                  <p className="trk-prose">
+                    Imported <code className="trk-code">{pr.usedInternal}</code>, which is not part
+                    of the developer surface and changes without notice. Use{' '}
+                    <code className="trk-code">{COMPONENT[pr.usedInternal]?.useInstead}</code>.
+                  </p>
+                ),
+              },
+              {
+                id: 'who',
+                title: 'Who and when',
+                icon: 'users-alt',
+                content: (
+                  <DetailList>
+                    <Field label="Author">
+                      <button
+                        type="button"
+                        className="link-cell"
+                        onClick={() => onOpenDeveloper?.(pr.author)}
+                      >
+                        {pr.author}
+                      </button>
+                    </Field>
+                    <Field label="Team">{TEAM[pr.team]?.name}</Field>
+                    <Field label="Product area">{pr.productArea}</Field>
+                    <Field label="Files changed">{pr.filesChanged}</Field>
+                    <Field label="Opened">{fmtDateTime(pr.openedAt)}</Field>
+                    <Field label="Merged">{pr.mergedAt ? fmtDateTime(pr.mergedAt) : ''}</Field>
+                  </DetailList>
+                ),
+              },
+              data.violations.length && {
+                id: 'findings',
+                title: 'Findings',
+                icon: 'exclamation-triangle',
+                badge: {
+                  message: `${data.open.length} open`,
+                  semanticType: data.open.length ? 'warning' : 'positive',
+                },
+                content: (
+                  <ul className="trk-list">
+                    {data.violations.map((v) => (
+                      <li key={v.id}>
+                        <span className="trk-rule-row">
+                          <code className="trk-code">{v.ruleId}</code>
+                          <SeverityMark severity={v.severity} />
+                          <span className="trk-rule-row__title">{RULE[v.ruleId]?.title}</span>
+                          <ViolationStatusBadge status={v.status} />
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ),
+              },
+              data.pushes.length && {
+                id: 'pushes',
+                title: 'Pushes',
+                icon: 'code',
+                badge: { message: String(data.pushes.length) },
+                content: (
+                  <Timeline
+                    items={data.pushes.map((pu, i) => ({
+                      id: pu.id,
+                      label: pu.commitId,
+                      at: fmtDateTime(pu.timestamp),
+                      text: pu.commitMessage,
+                      tone: i === 0 ? 'info' : undefined,
+                    }))}
+                  />
+                ),
+              },
+            ]}
+          />
+
         </div>
       )}
     </DetailPanel>
