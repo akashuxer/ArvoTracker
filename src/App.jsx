@@ -127,7 +127,7 @@ function Shell() {
      section changes rather than persisting a tab that no longer exists. */
   const [subTab, setSubTab] = useState(SECTION[sectionFromPath()]?.tabs?.[0]?.id ?? null)
   const { status, error, reload, saveWorkItem, nextWorkItemId } = useTracker()
-  const { restore: restoreBanners, dismissed: dismissedAlerts } = useBannerStack()
+  const { restore: restoreBanners, canReset } = useBannerStack()
 
   // See keepPopoverInPlace: an Arvo popover loses its position while closing.
   useEffect(keepPopoverInPlace, [])
@@ -234,7 +234,7 @@ function Shell() {
                         variant="primary"
                         size="md"
                         label="Reset Alerts"
-                        isDisabled={dismissedAlerts.length === 0}
+                        isDisabled={!canReset}
                         icon="refresh"
                         onClick={restoreBanners}
                       />

@@ -1,6 +1,7 @@
+import { ArvoButton } from '@arvo/react'
 import { ExpandableTile } from '@o9qa/kit'
+import { useBannerStack } from '../components/PlatformBanners'
 import ExplorationDocs from './ExplorationDocs'
-import { ALERTS } from '../components/platformAlerts'
 
 /**
  * Exploration -- ideas being looked at before anyone commits to them.
@@ -16,14 +17,25 @@ import { ALERTS } from '../components/platformAlerts'
  * explanation, and the way back after dismissing.
  */
 export default function ExplorationView() {
+  const { alerts, arrive, canArrive } = useBannerStack()
   return (
     <ExpandableTile
       id="stacked-banners"
       title="Concurrent alerts, stacked above the header"
-      note={`${ALERTS.length} alerts, one sequence`}
+      note={`${alerts.length} alerts, one sequence`}
       canExpand={false}
       expandedId={null}
       onToggle={() => {}}
+      actions={
+        <ArvoButton
+          variant="secondary"
+          size="sm"
+          icon="plus"
+          label="New alert arrives"
+          isDisabled={!canArrive}
+          onClick={arrive}
+        />
+      }
     >
       <ExplorationDocs />
     </ExpandableTile>

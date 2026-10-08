@@ -205,7 +205,21 @@ compact presentation used inside the stack`}</Code>
               <li>Stack animation, and reduced-motion handling for it</li>
             </ul>
           </div>
+        <div className="xd__col">
+          <h4><span className="xd__tag xd__tag--platform">Missing in Arvo Banner (compact)</span></h4>
+          <ul>
+            <li><strong>A Previous / counter / Next control</strong> before the message — the buttons, the “4/10” and their spacing</li>
+            <li>A <strong>start-content slot</strong> to put it in</li>
+            <li>A dismiss label that can say “Dismiss this notification”</li>
+            <li>Controlled and programmatic dismissal, and an exit-complete event</li>
+            <li>Closing timing as tokens, and lifecycle timing</li>
+          </ul>
+          <p className="xd__quiet">
+            The control should <em>look and behave</em> as part of Arvo Banner. What it points at — the
+            collection, the order, what “next” means — stays in BannerStackAlert.
+          </p>
         </div>
+      </div>
         <div className="xd__note xd__note--warn">
           <strong>What the prototype does that the component should not.</strong>
           <p>
@@ -233,6 +247,50 @@ compact presentation used inside the stack`}</Code>
             s.label, s.type, String(countOf(s.id)), s.type === 'negative' ? 'alert' : 'status',
           ])}
         />
+
+        <h4>Order inside a severity: newest first (LIFO)</h4>
+        <p>
+          <strong>Severity decides which banner is in front. Time decides the order within it.</strong>{' '}
+          Inside a severity the alert that arrived last is <code>1</code> and the oldest is last, so
+          Previous and Next walk newest to oldest. The newest is the one most likely to be about what
+          the reader is doing now; an older alert that is still open has already had its chance to be
+          seen. Alerts carry a <code>createdAt</code> timestamp and the stack sorts by it. Alerts with
+          the same time keep the order they were given in.
+        </p>
+        <Code>{`Sort key:  1. severity   Error → Warning → Info → Success
+           2. createdAt  newest first, within a severity
+
+1/10  Error   · arrived 10:14   ← newest Error
+2/10  Error   · arrived 10:09
+3/10  Error   · arrived 10:02   ← oldest Error
+4/10  Warning · arrived 10:12   ← newest Warning
+…`}</Code>
+        <p>
+          The counter, Previous, Next and the stack all read the same sorted sequence, so they cannot
+          disagree about the order.
+        </p>
+        <h4>When a new alert arrives</h4>
+        <ul>
+          <li>It goes to the <strong>top of its severity</strong> (position 1 of that severity) and the counter total goes up by one.</li>
+          <li>
+            <strong>It is shown.</strong> A new alert has to be seen, so the stack goes to it: that
+            severity’s banner comes to the front with the new message, and the one the reader was on
+            moves back by the same rule as Next. A new Warning while reading Error 1/10 reads
+            <code> 5/11</code>, with the Warning banner in front.
+          </li>
+          <li>If its severity had no alerts left, that banner returns to the stack in its priority place, showing the new alert.</li>
+          <li>The stack’s height is held, so the header does not move.</li>
+          <li>Use <strong>New alert arrives</strong> on this page to see each case. Reset Alerts takes the demo back to the start.</li>
+        </ul>
+        <div className="xd__note xd__note--warn">
+          <strong>A reader is moved without asking.</strong>
+          <p>
+            That is right for an Error and arguably wrong for a Success that arrives while someone is
+            reading an Error. The prototype moves the reader for every severity. A rule such as “only
+            move to a new alert if it is at least as severe as the one on screen” is a product choice
+            and is not built.
+          </p>
+        </div>
 
         <h4>Previous / Next</h4>
         <p>
@@ -408,10 +466,10 @@ Success                     Error      ← sent to the back`}</Code>
           Figma, in code, or in both.
         </p>
         <div className="xd__gaps">
-          <Gap n="1" title="Start-content slot in the message area" where="Figma + code"
-            limitation="message takes inline text, bold, links and code only. There is no slot, and children are ignored. The prototype portals real Icon Buttons into Arvo’s message paragraph, which depends on its markup and breaks if React rewrites the paragraph."
-            why="Previous, counter and Next must sit before the message, inside the banner, as in the design."
-            api={<><code>startContent?: ReactNode</code> (JS: element or factory), rendered before the message, honoured when compact. Figma: a “Start content” slot in the Banner component.</>} />
+          <Gap n="1" title="Pager control and start-content slot (Previous / counter / Next)" where="Figma + code"
+            limitation="The compact banner has nothing before its message: message takes inline text, bold, links and code only, and children are ignored. There is no Previous, no counter, no Next. The prototype portals real Icon Buttons into Arvo’s message paragraph, which depends on its markup and breaks if React rewrites the paragraph."
+            why="Moving through several notifications is a banner interaction, and it has to look and sound like part of the banner: same spacing, same xs tertiary buttons, same focus order, same screen-reader wording. It should come from Arvo Banner, not be assembled beside it."
+            api={<>Two layers. <strong>(a)</strong> A first-class pager on the compact banner: <code>pager?: &#123; current: number; total: number; onPrevious(): void; onNext(): void; hasPrevious?: boolean; hasNext?: boolean &#125;</code>, drawing Previous, “current/total” and Next before the message, with Arvo’s own labels (“Previous”, “Next”, “Alert 4 of 10”). <strong>(b)</strong> A general <code>startContent?: ReactNode</code> slot for anything else. In Figma: a “Pager” property and a “Start content” slot on the compact Banner. The banner draws and announces the control; BannerStackAlert decides what <em>current</em>, <em>total</em> and <em>next</em> mean.</>} />
           <Gap n="2" title="Dismiss-button label" where="Code"
             limitation="The close button is fixed as “Dismiss alert”, tooltip and name."
             why="In a stack × dismisses one notification of many; the label must say so: “Dismiss this notification”."
@@ -456,8 +514,8 @@ Success                     Error      ← sent to the back`}</Code>
         <div className="xd__note">
           <strong>Deliberately not gaps.</strong>
           <p>
-            Severity-group ordering, the global counter, collection navigation, edges, shadow and
-            stack management are BannerStackAlert’s. Moving them into Arvo Banner would make a single
+            Severity-group ordering, the <em>value</em> of the counter, what Next means, edges, shadow
+            and stack management are BannerStackAlert’s. The control that draws them is Arvo Banner’s (Gap 1). Moving them into Arvo Banner would make a single
             banner carry behaviour only a stack needs.
           </p>
         </div>

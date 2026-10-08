@@ -4,7 +4,7 @@ import {
 import { createPortal } from 'react-dom'
 import { ArvoBannerAlert, ArvoIconButton } from '@arvo/react'
 import {
-  ALERTS, INITIAL_CURSOR, SEVERITIES, SEVERITY, afterDismiss, deriveStack, initialSeen,
+  ALERTS, INCOMING, INITIAL_CURSOR, SEVERITIES, SEVERITY, afterDismiss, deriveStack, initialSeen, sortAlerts,
 } from './platformAlerts'
 import './PlatformBanners.css'
 
@@ -64,27 +64,64 @@ export function BannerStackProvider({ children }) {
      mounting it again: a new key. */
   const [epoch, setEpoch] = useState(0)
 
-  const moveTo = useCallback((id) => {
-    setCursor(id)
-    setSeen((s) => ({ ...s, [ALERTS.find((a) => a.id === id).severity]: id }))
-  }, [])
+  /* The alerts themselves: they can arrive. Always held sorted -- severity, then
+     newest first -- so nothing downstream has to remember to. */
+  const [alerts, setAlerts] = useState(ALERTS)
+  const [arrived, setArrived] = useState(0)
+  /* The stack registers here so that a change made from OUTSIDE it -- an alert
+     arriving -- can still have the stack record where everything is before the
+     order changes, which is what lets the move be animated. */
+  const beforeChange = useRef(null)
+
+  const moveTo = useCallback(
+    (id) => {
+      setCursor(id)
+      setSeen((s) => ({ ...s, [alerts.find((a) => a.id === id).severity]: id }))
+    },
+    [alerts]
+  )
 
   const dismissAlert = useCallback(
     (id) => {
-      const result = afterDismiss(id, dismissed, seen)
+      const result = afterDismiss(alerts, id, dismissed, seen)
       setDismissed((d) => (d.includes(id) ? d : [...d, id]))
       setSeen(result.seen)
       if (result.target) setCursor(result.target.id)
       if (!result.emptied) {
-        const sev = ALERTS.find((a) => a.id === id).severity
+        const sev = alerts.find((a) => a.id === id).severity
         setBumps((b) => ({ ...b, [sev]: (b[sev] ?? 0) + 1 }))
       }
       return result
     },
-    [dismissed, seen]
+    [alerts, dismissed, seen]
   )
 
+  /* A new alert goes in at the top of its severity AND is shown: the reader is
+     taken to it. That is the point of an alert arriving -- it has to be seen --
+     so its banner comes to the front with the new message, and the counter total
+     goes up by one. If its severity had nothing left, that banner closed for
+     good and is mounted again. */
+  const canArrive = arrived < INCOMING.length
+  const arrive = useCallback(() => {
+    if (!canArrive) return null
+    const incoming = { ...INCOMING[arrived], createdAt: Date.now() }
+    const wasLive = alerts.some(
+      (a) => a.severity === incoming.severity && !dismissed.includes(a.id)
+    )
+    beforeChange.current?.(incoming.severity)
+    setAlerts(sortAlerts([...alerts, incoming]))
+    setArrived((n) => n + 1)
+    setCursor(incoming.id)
+    setSeen((s) => ({ ...s, [incoming.severity]: incoming.id }))
+    if (!wasLive) {
+      setBumps((b) => ({ ...b, [incoming.severity]: (b[incoming.severity] ?? 0) + 1 }))
+    }
+    return incoming
+  }, [alerts, arrived, canArrive, dismissed])
+
   const reset = useCallback(() => {
+    setAlerts(ALERTS)
+    setArrived(0)
     setDismissed([])
     setBumps({})
     setCursor(INITIAL_CURSOR)
@@ -95,9 +132,11 @@ export function BannerStackProvider({ children }) {
     setEpoch((n) => n + 1)
   }, [reset])
 
+  const canReset = dismissed.length > 0 || arrived > 0
+
   const value = useMemo(
-    () => ({ dismissed, bumps, cursor, seen, epoch, moveTo, dismissAlert, restore, reset }),
-    [dismissed, bumps, cursor, seen, epoch, moveTo, dismissAlert, restore, reset]
+    () => ({ beforeChange, alerts, dismissed, bumps, cursor, seen, epoch, moveTo, dismissAlert, arrive, canArrive, canReset, restore, reset }),
+    [alerts, dismissed, bumps, cursor, seen, epoch, moveTo, dismissAlert, arrive, canArrive, canReset, restore, reset]
   )
   return <BannerStackContext.Provider value={value}>{children}</BannerStackContext.Provider>
 }
@@ -291,7 +330,7 @@ function PlatformBanner({
 /* ---- The stack ------------------------------------------------------------------- */
 
 export default function PlatformBanners() {
-  const { dismissed, bumps, cursor, seen, epoch, moveTo, dismissAlert, reset } = useBannerStack()
+  const { alerts, beforeChange, dismissed, bumps, cursor, seen, epoch, moveTo, dismissAlert, reset } = useBannerStack()
   const stackRef = useRef(null)
   const itemRefs = useRef({})
   /* Where each banner was, captured just before the order changes. */
@@ -306,7 +345,7 @@ export default function PlatformBanners() {
      them, or the page would offer to restore banners that are already showing. */
   useEffect(() => reset, [reset])
 
-  const { liveAlerts, index, active, stack } = deriveStack(dismissed, cursor)
+  const { liveAlerts, index, active, stack } = deriveStack(alerts, dismissed, cursor)
   const isFull = dismissed.length === 0
   const isEmpty = stack.length === 0
   const emptied = SEVERITIES.map((s) => s.id).filter((id) => !stack.includes(id))
@@ -387,6 +426,14 @@ export default function PlatformBanners() {
     running.current = []
   }
 
+  /* Lets the provider call this just before an alert arrives. */
+  beforeChange.current = (severity) => {
+    /* Same severity: the stack does not move, so there is nothing to record. */
+    if (severity === active || reducedMotion()) return
+    pendingFlip.current = geometry()
+    cancelRunning()
+  }
+
   const handleStep = (delta) => {
     const target = liveAlerts[index + delta]
     if (!target) return
@@ -417,6 +464,8 @@ export default function PlatformBanners() {
     const from = pendingFlip.current
     pendingFlip.current = null
     if (!from) return
+    /* A banner that was not there has no start to animate from. */
+    if (stack.some((sev) => !from[sev])) return
 
     const top = stackRef.current.getBoundingClientRect().top
     const settled = Object.fromEntries(
@@ -470,7 +519,7 @@ export default function PlatformBanners() {
      does not change. Nothing about either banner is resized: only the slots they
      sit in. */
   const handleDismiss = (id) => {
-    const severity = ALERTS.find((a) => a.id === id).severity
+    const severity = alerts.find((a) => a.id === id).severity
     const result = dismissAlert(id)
     const live = SEVERITIES.map((s) => s.id).filter((sev) =>
       result.remaining.some((a) => a.severity === sev)
@@ -540,7 +589,7 @@ export default function PlatformBanners() {
     >
       {renderOrder.map((severity) => {
         const isDismissed = emptied.includes(severity)
-        const shown = ALERTS.find((a) => a.id === seen[severity])
+        const shown = alerts.find((a) => a.id === seen[severity])
         const position = liveAlerts.findIndex((a) => a.id === shown.id) + 1
         const place = stack.indexOf(severity)
         return (
