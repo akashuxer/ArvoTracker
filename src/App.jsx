@@ -10,6 +10,8 @@ import ModernizationView from './views/ModernizationView'
 import AdoptionView from './views/AdoptionView'
 import ViolationsView from './views/ViolationsView'
 import AnalyticsView from './views/AnalyticsView'
+import ExplorationView from './views/ExplorationView'
+import PlatformBanners, { BannerStackProvider, useBannerStack } from './components/PlatformBanners'
 import WorkItemPanel from './components/WorkItemPanel'
 import ImportScanPanel from './components/ImportScanPanel'
 
@@ -87,6 +89,13 @@ const SECTIONS = [
     title: 'Violations',
     lede: 'What the scanner found on each push, and who to talk to about it.',
   },
+  {
+    id: 'exploration',
+    label: 'Exploration',
+    icon: 'compass',
+    title: 'Exploration',
+    lede: 'Ideas being looked at before anyone commits to them.',
+  },
 ]
 
 const SECTION = Object.fromEntries(SECTIONS.map((s) => [s.id, s]))
@@ -103,6 +112,7 @@ const VIEWS = {
   adoption: AdoptionView,
   violations: ViolationsView,
   analytics: AnalyticsView,
+  exploration: ExplorationView,
 }
 
 function Shell() {
@@ -117,6 +127,7 @@ function Shell() {
      section changes rather than persisting a tab that no longer exists. */
   const [subTab, setSubTab] = useState(SECTION[sectionFromPath()]?.tabs?.[0]?.id ?? null)
   const { status, error, reload, saveWorkItem, nextWorkItemId } = useTracker()
+  const { restore: restoreBanners, dismissed: dismissedAlerts } = useBannerStack()
 
   // See keepPopoverInPlace: an Arvo popover loses its position while closing.
   useEffect(keepPopoverInPlace, [])
@@ -171,125 +182,141 @@ function Shell() {
   ]
 
   return (
-    <div className="app-container">
-      <LeftNav
-        items={SECTIONS}
-        activeId={section}
-        onNavigate={(item) => goTo(item.id)}
-        onHome={() => goTo(DEFAULT_SECTION)}
-      />
-
-      <div className="app-main">
-        <AppHeader
-          title={current.title}
-          trail={trail}
-          onTrailNavigate={(id) => goTo(id === 'root' ? DEFAULT_SECTION : id)}
-          tabs={current.tabs ?? []}
-          activeTab={subTab}
-          onTabChange={setSubTab}
-          canGoBack={canGoBack}
-          onBack={() => window.history.back()}
-          onOpenSettings={() => setActivePanel('settings')}
+    <div className="trk-frame">
+      {section === 'exploration' && <PlatformBanners />}
+      <div className="app-container">
+        <LeftNav
+          items={SECTIONS}
+          activeId={section}
+          onNavigate={(item) => goTo(item.id)}
+          onHome={() => goTo(DEFAULT_SECTION)}
         />
 
-        <div className="app-body">
-          <div className="app-content">
-            <main className="content-area">
-              {/* One toolbar for every section rather than an Add button inside
-                  each view: raising an item is the thing you always want to be
-                  able to do, including from Analytics when you have just found
-                  the reason to. */}
-              <div className="trk-toolbar">
-                <div className="trk-toolbar__text">
-                  <h1 className="trk-toolbar__title">{current.title}</h1>
-                  <p className="trk-toolbar__lede">{current.lede}</p>
-                </div>
-                <div className="trk-toolbar__actions">
-                  {section === 'violations' && (
-                    <ArvoButton
-                      variant="secondary"
-                      size="md"
-                      label="Import scan results"
-                      icon="cloud-upload"
-                      onClick={() => setImporting(true)}
-                    />
-                  )}
-                  <ArvoButton
-                    variant="primary"
-                    size="md"
-                    label="Add item"
-                    icon="plus"
-                    onClick={() => setEditing('new')}
-                  />
-                </div>
-              </div>
+        <div className="app-main">
+          <AppHeader
+            title={current.title}
+            trail={trail}
+            onTrailNavigate={(id) => goTo(id === 'root' ? DEFAULT_SECTION : id)}
+            tabs={current.tabs ?? []}
+            activeTab={subTab}
+            onTabChange={setSubTab}
+            canGoBack={canGoBack}
+            onBack={() => window.history.back()}
+            onOpenSettings={() => setActivePanel('settings')}
+          />
 
-              {status === 'error' ? (
-                <div className="trk-error" role="alert">
-                  <p className="trk-error__msg">Could not load the tracker: {error}</p>
-                  <ArvoButton variant="secondary" size="md" label="Try again" icon="refresh" onClick={reload} />
-                </div>
-              ) : (
-                <View subTab={subTab} onEditItem={setEditing} onNavigate={goTo} />
-              )}
-            </main>
-          </div>
-
-          {/* Docked, and a sibling of the content and the rail, so the shell's
-              own seam supplies the [panel][launchbar] gap. */}
-          <div
-            className={`panel-dock${activePanel ? ' panel-dock--open' : ''}`}
-            inert={!activePanel || undefined}
-          >
-            {panelConfig && (
-              <ArvoPanel
-                displayMode="docked"
-                placement="right"
-                title={panelConfig.title}
-                defaultSize={320}
-                isOpen
-                onClose={() => setActivePanel(null)}
-              >
-                {activePanel === 'settings' ? (
-                  <SettingsPanel />
-                ) : (
-                  <div className="trk-help">
-                    <h3>What this tracker is for</h3>
-                    <p>
-                      Three views of one programme of work. A violation is a signal that a team
-                      needs support, not a citation — the fastest fix for a repeated one is usually
-                      a missing token or a missing component prop, which belongs on the Roadmap.
-                    </p>
-                    <h3>Where the data comes from</h3>
-                    <p>
-                      Mock data in this version. Violations are shaped for the CI payload, which you
-                      can try from <strong>Import scan results</strong> on the Violations section.
-                    </p>
+          <div className="app-body">
+            <div className="app-content">
+              <main className="content-area">
+                {/* One toolbar for every section rather than an Add button inside
+                    each view: raising an item is the thing you always want to be
+                    able to do, including from Analytics when you have just found
+                    the reason to. */}
+                <div className="trk-toolbar">
+                  <div className="trk-toolbar__text">
+                    <h1 className="trk-toolbar__title">{current.title}</h1>
+                    <p className="trk-toolbar__lede">{current.lede}</p>
                   </div>
+                  <div className="trk-toolbar__actions">
+                    {section === 'violations' && (
+                      <ArvoButton
+                        variant="secondary"
+                        size="md"
+                        label="Import scan results"
+                        icon="cloud-upload"
+                        onClick={() => setImporting(true)}
+                      />
+                    )}
+                    {section === 'exploration' ? (
+                      /* The demo's own way back: brings every dismissed
+                         notification back, in their original order. */
+                      <ArvoButton
+                        variant="primary"
+                        size="md"
+                        label="Reset Alerts"
+                        isDisabled={dismissedAlerts.length === 0}
+                        icon="refresh"
+                        onClick={restoreBanners}
+                      />
+                    ) : (
+                      <ArvoButton
+                        variant="primary"
+                        size="md"
+                        label="Add item"
+                        icon="plus"
+                        onClick={() => setEditing('new')}
+                      />
+                    )}
+                  </div>
+                </div>
+
+                {status === 'error' ? (
+                  <div className="trk-error" role="alert">
+                    <p className="trk-error__msg">Could not load the tracker: {error}</p>
+                    <ArvoButton variant="secondary" size="md" label="Try again" icon="refresh" onClick={reload} />
+                  </div>
+                ) : (
+                  <View subTab={subTab} onEditItem={setEditing} onNavigate={goTo} />
                 )}
-              </ArvoPanel>
-            )}
+              </main>
+            </div>
+
+            {/* Docked, and a sibling of the content and the rail, so the shell's
+                own seam supplies the [panel][launchbar] gap. */}
+            <div
+              className={`panel-dock${activePanel ? ' panel-dock--open' : ''}`}
+              inert={!activePanel || undefined}
+            >
+              {panelConfig && (
+                <ArvoPanel
+                  displayMode="docked"
+                  placement="right"
+                  title={panelConfig.title}
+                  defaultSize={320}
+                  isOpen
+                  onClose={() => setActivePanel(null)}
+                >
+                  {activePanel === 'settings' ? (
+                    <SettingsPanel />
+                  ) : (
+                    <div className="trk-help">
+                      <h3>What this tracker is for</h3>
+                      <p>
+                        Three views of one programme of work. A violation is a signal that a team
+                        needs support, not a citation — the fastest fix for a repeated one is usually
+                        a missing token or a missing component prop, which belongs on the Roadmap.
+                      </p>
+                      <h3>Where the data comes from</h3>
+                      <p>
+                        Mock data in this version. Violations are shaped for the CI payload, which you
+                        can try from <strong>Import scan results</strong> on the Violations section.
+                      </p>
+                    </div>
+                  )}
+                </ArvoPanel>
+              )}
+            </div>
+
+            <RightLaunchbar activePanel={activePanel} onPanelChange={setActivePanel} />
           </div>
-
-          <RightLaunchbar activePanel={activePanel} onPanelChange={setActivePanel} />
         </div>
+
+        <WorkItemPanel
+          item={editing === 'new' ? null : editing}
+          isOpen={!!editing}
+          nextId={nextWorkItemId}
+          onSave={(values) => {
+            saveWorkItem(values)
+            setEditing(null)
+            /* A created item has to be somewhere you can see it. Saving from
+               Analytics and staying there looks like nothing happened. */
+            goTo('roadmap')
+          }}
+          onCancel={() => setEditing(null)}
+        />
+
+        <ImportScanPanel isOpen={isImporting} onClose={() => setImporting(false)} />
       </div>
-
-      <WorkItemPanel
-        item={editing === 'new' ? null : editing}
-        isOpen={!!editing}
-        nextId={nextWorkItemId}
-        onSave={(values) => {
-          saveWorkItem(values)
-          setEditing(null)
-          /* A created item has to be somewhere you can see it. Saving from
-             Analytics and staying there looks like nothing happened. */
-          goTo('roadmap')
-        }}
-        onCancel={() => setEditing(null)}
-      />
-
-      <ImportScanPanel isOpen={isImporting} onClose={() => setImporting(false)} />
     </div>
   )
 }
@@ -308,7 +335,9 @@ export default function App() {
               readers are fine, but nothing appears on hover. */}
           <TooltipProvider config={{ enabled: true, hoverDelay: 400, gap: 4 }}>
             <TrackerProvider>
-              <Shell />
+              <BannerStackProvider>
+                <Shell />
+              </BannerStackProvider>
             </TrackerProvider>
           </TooltipProvider>
         </NotificationsProvider>

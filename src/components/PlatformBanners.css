@@ -1,0 +1,164 @@
+/*
+ * The shell frame, and the banner stack that sits in it.
+ *
+ * `.app-container` is a fixed 100vh row holding the rail AND the header, so
+ * anything that must sit above the header has to sit above that whole container.
+ * The frame is a column that owns the 100vh instead, with the stack on top and
+ * the container filling what is left. With no stack it is the same 100vh the
+ * container had on its own, so no other page changes size.
+ */
+.trk-frame {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* `.app-container` sets its own `height: 100vh`; this beats it by specificity
+   rather than by editing the shared kit stylesheet. */
+.trk-frame > .app-container {
+  flex: 1 1 0;
+  height: auto;
+  min-height: 0;
+}
+
+/* ---- The stack ------------------------------------------------------------ */
+
+/* A deck, not a list. The banner in front -- the highest priority -- is shown in
+   full at the bottom, just above the header. Each lower priority sits behind it
+   and shows only a thin coloured edge, the lowest at the very top. */
+.trk-banners {
+  /* How much of a banner shows once it is behind another. Enough to read as a
+     coloured edge with its accent, not enough to look like a second banner. */
+  --trk-banner-sliver: var(--arvo-space-6);
+
+  /* Arvo's own low-elevation recipe -- --arvo-shadow-low is 0 2px 6px -1px --
+   * with the vertical offset flipped so it falls UP onto the edge behind. Arvo
+   * has no upward token at that weight: --arvo-shadow-up is 0 -10px 20px, sized
+   * for a footer toolbar, and on a 31px banner it smudges most of the one above
+   * it (tried side by side). The colour is still Arvo's shadow tint, and the
+   * negative spread keeps the shadow off the left and right edges, so the
+   * banners read as flat bars overlapping rather than cards floating over the
+   * page. To make it stronger or softer, this is the one line to change. */
+  --trk-banner-lift: 0 -2px 6px -1px var(--arvo-color-s-shadow-static-1);
+
+  display: flex;
+  /* Bottom-up. The DOM is in priority order, highest first, so reversing the
+     flow puts the highest priority at the bottom and the lowest at the top. */
+  flex-direction: column-reverse;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0;
+
+  /* The stack keeps this height once anything has been dismissed (set by
+     PlatformBanners from a measurement of the full deck), so the header does not
+     move until the last banner is gone. `min-height`, not `height`: if a banner
+     brought forward needs more room than was reserved, the stack grows to fit
+     rather than clipping it. */
+  min-height: var(--trk-stack-h, 0px);
+}
+
+/* The last banner is closing, so the stack finally lets go of its height and the
+   header moves up -- the one time it should. It runs on the banner's own clock,
+   0.22s ease, so the header glides up as the banner collapses rather than
+   before or after it. The transition lives on THIS state and not on the base
+   rule: a transition is taken from the state being entered, so putting it on the
+   base would also animate the height being HELD at the first dismissal, and the
+   header would dip and recover. */
+.trk-banners--empty {
+  min-height: 0;
+  transition: min-height var(--arvo-duration-medium, 220ms) var(--arvo-ease-simple, ease);
+}
+
+/* One wrapper per banner, with its own stacking context so each is painted as a
+   unit and layered by priority (`--trk-layer`, set inline). The banner in front
+   has the highest layer, so its shadow falls onto the edge of the one behind it.
+   The topmost edge's shadow falls above the window and is clipped.
+
+   The wrapper is also the SLOT the banner sits in, and it is painted in the
+   banner's own colours (see SURFACE in PlatformBanners.jsx): its background, and
+   its left accent as an inset shadow where the banner's border would be. The
+   banner is never stretched. When the slot is taller than the banner, the
+   difference is this same surface above and below it, so the two read as one
+   banner -- and the banner itself is exactly what Arvo makes. */
+.trk-banners__item {
+  position: relative;
+  z-index: var(--trk-layer, 0);
+  isolation: isolate;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--trk-fill-bg);
+  box-shadow:
+    inset var(--arvo-border-2) 0 0 0 var(--trk-fill-accent),
+    var(--trk-banner-lift);
+
+  /* The banner in front takes everything the edges behind it do not use. With
+     the full deck that is exactly its own height; as banners are dismissed the
+     stack keeps its size, so it is more. */
+  flex: 1 1 auto;
+}
+
+/* Two spacers that share whatever room the banner leaves, which centres it. Where
+   there is none -- an edge, or a slot still growing -- they are zero and the
+   banner sits at the top and is clipped, which is what an edge should show. This
+   is why it is spacers and not `align-items: center`: centring a banner taller
+   than its slot would show its MIDDLE, and an edge must show its top. */
+.trk-banners__item::before,
+.trk-banners__item::after {
+  content: '';
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+/* Never squeezed and never stretched. */
+.trk-banners__body { flex: 0 0 auto; }
+
+/* Every banner that has another live banner before it in priority order is
+   behind it, and is an edge: a fixed height, whatever happens in front. Fixed,
+   because the text of a banner behind must never show, and it starts a little
+   below this. "Live" means it still contains a banner -- ArvoBannerAlert renders
+   nothing once it has finished closing -- which is what makes this follow
+   dismissal with no state: the closing one empties, and the next stops matching
+   and comes forward. */
+.trk-banners__item:has(.arvo-bnr-alert) ~ .trk-banners__item:has(.arvo-bnr-alert) {
+  flex: 0 0 var(--trk-banner-sliver);
+  min-height: 0;
+}
+
+/* Closing. Its slot is driven by the animation in PlatformBanners.jsx, so it must
+   neither grow back into the space nor shrink on its own. */
+.trk-banners__item[data-dismissed] {
+  flex: 0 0 auto;
+}
+
+/* Gone. No surface, no shadow, no height -- a zero-height slot can otherwise
+   still leave a hair of shadow behind. */
+.trk-banners__item:not(:has(.arvo-bnr-alert)) {
+  flex: 0 0 0;
+  background: none;
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trk-banners--empty { transition: none; }
+}
+
+/* ---- Navigation inside the message ----------------------------------------- */
+
+/* The element PlatformBanners puts at the start of the banner's message
+   paragraph, holding `‹ 1/10 ›`. Inline, so the message carries on after it and
+   wraps under it as ordinary text does; the banner's own typography is
+   untouched and the counter simply inherits it. */
+.trk-banners__nav {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--arvo-space-4);
+  margin-inline-end: var(--arvo-space-8);
+  vertical-align: middle;
+}
+
+/* Figures that change do not reflow the message after them. */
+.trk-banners__count {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

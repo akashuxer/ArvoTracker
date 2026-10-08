@@ -1,0 +1,132 @@
+/*
+ * Exploration -- the README for ArvoBannerStackAlert.
+ *
+ * Documentation, so it is set to be read: 14px body at a 1.6 line height, 16px
+ * and 20px for headings, a measure that stops at ~80 characters. Nothing here is
+ * 12px. Tokens throughout.
+ */
+
+.xd {
+  display: flex;
+  flex-direction: column;
+  gap: var(--arvo-space-32);
+  max-width: 1040px;
+  font-size: var(--arvo-font-size-14);
+  line-height: 1.6;
+  color: var(--arvo-color-t-primary, #010101);
+}
+
+.xd p { margin: 0; max-width: 80ch; }
+.xd ul, .xd ol { margin: 0; padding-left: var(--arvo-space-20); display: flex; flex-direction: column; gap: var(--arvo-space-6); max-width: 80ch; }
+
+.xd__section { display: flex; flex-direction: column; gap: var(--arvo-space-12); }
+.xd__section > h3 { margin: 0; font-size: var(--arvo-font-size-20); font-weight: var(--arvo-medium); line-height: 1.3; }
+.xd__section > h4 { margin: var(--arvo-space-8) 0 0; font-size: var(--arvo-font-size-16); font-weight: var(--arvo-medium); }
+.xd__num { color: var(--arvo-color-t-tertiary, #4c4c4c); margin-right: var(--arvo-space-8); font-variant-numeric: tabular-nums; }
+.xd__lede { color: var(--arvo-color-t-secondary, #303030); }
+.xd__quiet { color: var(--arvo-color-t-tertiary, #4c4c4c); }
+
+.xd__title { display: flex; flex-direction: column; gap: var(--arvo-space-8); padding-bottom: var(--arvo-space-24); border-bottom: var(--arvo-border-1) solid var(--arvo-color-b-divider, #e5e5e5); }
+.xd__title h2 { margin: 0; font-size: var(--arvo-font-size-24); font-weight: var(--arvo-medium); line-height: 1.25; }
+
+.xd code {
+  padding: 0 var(--arvo-space-4);
+  background: var(--arvo-color-s-layer-02, #f2f2f2);
+  font-family: var(--arvo-font-family-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: var(--arvo-font-size-14);
+}
+
+.xd pre {
+  margin: 0;
+  padding: var(--arvo-space-16) var(--arvo-space-20);
+  overflow-x: auto;
+  background: var(--arvo-color-s-layer-02, #f2f2f2);
+  border-left: var(--arvo-border-2) solid var(--arvo-color-b-divider, #e5e5e5);
+  font-family: var(--arvo-font-family-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: var(--arvo-font-size-14);
+  line-height: 1.55;
+  tab-size: 2;
+}
+.xd pre code { padding: 0; background: none; }
+
+/* A note that changes what the reader should do or believe. */
+.xd__note {
+  display: flex;
+  flex-direction: column;
+  gap: var(--arvo-space-4);
+  padding: var(--arvo-space-12) var(--arvo-space-16);
+  background: var(--arvo-color-s-info-subtle);
+  border-left: var(--arvo-border-4, 4px) solid var(--arvo-color-b-info);
+}
+.xd__note--warn { background: var(--arvo-color-s-warning-subtle); border-left-color: var(--arvo-color-b-warning); }
+.xd__note strong { font-weight: var(--arvo-bold); }
+
+/* Who owns what. */
+.xd__cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--arvo-space-16); }
+.xd__col { display: flex; flex-direction: column; gap: var(--arvo-space-8); padding: var(--arvo-space-16); border: var(--arvo-border-1) solid var(--arvo-color-b-divider, #e5e5e5); }
+.xd__col h4 { margin: 0; font-size: var(--arvo-font-size-16); font-weight: var(--arvo-medium); }
+.xd__col ul { padding-left: var(--arvo-space-16); }
+
+/* Tables. A wrapper scrolls on a narrow screen rather than squeezing a column
+   until a word breaks in the middle. */
+.xd__table { overflow-x: auto; border: var(--arvo-border-1) solid var(--arvo-color-b-divider, #e5e5e5); }
+.xd table { width: 100%; border-collapse: collapse; min-width: 640px; }
+.xd th, .xd td {
+  padding: var(--arvo-space-10) var(--arvo-space-12);
+  text-align: left;
+  vertical-align: top;
+  border-bottom: var(--arvo-border-1) solid var(--arvo-color-b-divider, #e5e5e5);
+}
+.xd th {
+  font-weight: var(--arvo-medium);
+  background: var(--arvo-color-s-layer-02, #f2f2f2);
+  white-space: nowrap;
+}
+.xd tbody tr:last-child td { border-bottom: none; }
+.xd td:first-child { font-weight: var(--arvo-medium); }
+.xd td.xd__yes { text-align: center; white-space: nowrap; }
+
+.xd__tag {
+  display: inline-block;
+  padding: 0 var(--arvo-space-6);
+  font-size: var(--arvo-font-size-14);
+  font-weight: var(--arvo-medium);
+  background: var(--arvo-color-s-layer-02, #f2f2f2);
+  white-space: nowrap;
+}
+.xd__tag--arvo { background: var(--arvo-color-s-info-subtle); }
+.xd__tag--stack { background: var(--arvo-color-s-positive-subtle); }
+.xd__tag--platform { background: var(--arvo-color-s-warning-subtle); }
+
+/* Gap cards: four short facts each, scannable. */
+.xd__gaps { display: flex; flex-direction: column; gap: var(--arvo-space-12); }
+.xd__gap { border: var(--arvo-border-1) solid var(--arvo-color-b-divider, #e5e5e5); }
+.xd__gap > header {
+  display: flex; align-items: baseline; gap: var(--arvo-space-12); flex-wrap: wrap;
+  padding: var(--arvo-space-10) var(--arvo-space-16);
+  background: var(--arvo-color-s-layer-02, #f2f2f2);
+}
+.xd__gap > header h4 { margin: 0; font-size: var(--arvo-font-size-16); font-weight: var(--arvo-medium); }
+.xd__gap dl { display: grid; grid-template-columns: 180px 1fr; gap: var(--arvo-space-8) var(--arvo-space-16); margin: 0; padding: var(--arvo-space-12) var(--arvo-space-16); }
+.xd__gap dt { color: var(--arvo-color-t-tertiary, #4c4c4c); }
+.xd__gap dd { margin: 0; }
+@media (max-width: 640px) { .xd__gap dl { grid-template-columns: 1fr; gap: 0; } .xd__gap dd { margin-bottom: var(--arvo-space-8); } }
+
+/* The worked example: a time rail. */
+.xd__steps { list-style: none; padding: 0; gap: 0; max-width: none; }
+.xd__steps li {
+  display: grid; grid-template-columns: 96px 1fr; gap: var(--arvo-space-16);
+  padding: var(--arvo-space-10) 0 var(--arvo-space-10) var(--arvo-space-16);
+  border-left: var(--arvo-border-2) solid var(--arvo-color-b-divider, #e5e5e5);
+}
+.xd__steps time { font-variant-numeric: tabular-nums; color: var(--arvo-color-t-tertiary, #4c4c4c); }
+.xd__steps li > div { display: flex; flex-direction: column; gap: var(--arvo-space-2); }
+.xd__steps li > div > span { color: var(--arvo-color-t-tertiary, #4c4c4c); }
+
+/* Contents. */
+.xd__toc { columns: 2 320px; column-gap: var(--arvo-space-32); padding-left: var(--arvo-space-20); display: block; }
+.xd__toc li { break-inside: avoid; margin-bottom: var(--arvo-space-4); }
+.xd__toc a { color: inherit; }
+
+.xd__sev { display: flex; flex-wrap: wrap; gap: var(--arvo-space-8); padding: 0; list-style: none; }
+.xd__sev li { padding: var(--arvo-space-4) var(--arvo-space-12); border-left: var(--arvo-border-4, 4px) solid var(--sev-accent); background: var(--sev-bg); }
